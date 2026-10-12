@@ -164,7 +164,7 @@ class FoodRecognizer(
             temperature = 0.2,
         )
         val root = extractJsonObject(result.content ?: throw AiException("AI 没有返回内容"))
-        val items = (root["items"] as? JsonArray).orEmpty().mapNotNull { el ->
+        val items = ((root["items"] ?: root["foods"]) as? JsonArray).orEmpty().mapNotNull { el ->
             val o = el as? JsonObject ?: return@mapNotNull null
             val name = o.str("name") ?: return@mapNotNull null
             val time = o.str("time")?.let { TimeUtil.parse(it) }

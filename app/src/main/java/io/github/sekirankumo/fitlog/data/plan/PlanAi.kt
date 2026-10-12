@@ -67,6 +67,14 @@ class PlanAi(
         return "用户信息：${p.describe(bodyDao.latestWeight()?.weightKg)}\n$trend"
     }
 
+    /** weekday 一般是 1–7，也兼容「周一」「星期三」这类写法 */
+    private fun weekdayOf(o: JsonObject): Int? {
+        o.long("weekday")?.let { return it.toInt() }
+        val text = o.str("weekday") ?: return null
+        val names = listOf("一", "二", "三", "四", "五", "六", "日")
+        return names.indexOfFirst { text.endsWith(it) || (it == "日" && text.endsWith("天")) }.takeIf { it >= 0 }?.plus(1)
+    }
+
     suspend fun generate(req: PlanRequest): GeneratedPlan {
         val user = """
             ${userContext()}
@@ -99,8 +107,9 @@ class PlanAi(
         val end = start.plusWeeks(req.weeks.toLong()).minusDays(1)
         var d = start
         while (!d.isAfter(end)) {
-            val template = week.firstOrNull { (it.long("weekday") ?: 0L).toInt() == d.dayOfWeek.value }
-            if (template != null) days += plans.parseAiDay(template, d)
+            val template = week.firstOrNull { weekdayOf(it) == d.dayOfWeek.value }
+            // 个别训练日格式有问题时跳过，不影响整个计划
+            if (template != null) runCatching { plans.parseAiDay(template, d) }.onSuccess { days += it }
             d = d.plusDays(1)
         }
         if (days.isEmpty()) throw AiException("AI 给出的计划没有训练日")
@@ -149,7 +158,7 @@ class PlanAi(
             4. 已经填过的重量尽量沿用；date 必须在 ${from} 到 ${to} 之间；休息日不要列出。
         """.trimIndent()
         val root = ask("你是经验丰富的私人教练，负责根据学员的实际情况调整训练计划。只输出 JSON。", user)
-        val days = root.objects("days").map { plans.parseAiDay(it) }
+        val days = root.objects("days").mapNotNull { runCatching { plans.parseAiDay(it) }.getOrNull() }
             .filter { it.date in from.toEpochDay()..to.toEpochDay() }
             .distinctBy { it.date }
         if (days.isEmpty() && upcoming.isNotEmpty()) throw AiException("AI 返回的计划是空的")

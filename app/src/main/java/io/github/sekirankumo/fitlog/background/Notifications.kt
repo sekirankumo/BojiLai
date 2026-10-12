@@ -34,7 +34,9 @@ object Notifications {
 
     /** open：打开 App 后跳转的页面路由 */
     fun show(context: Context, id: Int, channel: String, title: String, text: String, open: String) {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
             return
         }
         val intent = Intent(context, MainActivity::class.java)

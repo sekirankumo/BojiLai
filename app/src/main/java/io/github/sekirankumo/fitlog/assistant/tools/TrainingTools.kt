@@ -363,11 +363,10 @@ class GeneratePlanTool(plans: PlanRepository, private val ai: PlanAi) : PlanWrit
         val plan = ai.generate(request(args))
         val start = plan.meta.startDate
         val end = maxOf(plan.meta.endDate, plans.lastDate()?.toEpochDay() ?: plan.meta.endDate)
-        // 已完成的训练保留
-        val keep = plans.range(LocalDate.ofEpochDay(start), LocalDate.ofEpochDay(end))
-            .filter { it.status == DayStatus.DONE && plan.days.none { d -> d.date == it.date } }
+        // 已完成的训练保留，新计划在这些日期上的安排让位
+        val done = plans.range(LocalDate.ofEpochDay(start), LocalDate.ofEpochDay(end)).filter { it.status == DayStatus.DONE }
         val oldMeta = plans.meta()?.let { plans.json.encodeToString(PlanMeta.serializer(), it) } ?: ""
-        val snap = plans.replaceRange(start, end, plan.days + keep)
+        val snap = plans.replaceRange(start, end, plan.days.filter { d -> done.none { it.date == d.date } } + done)
         plans.setMeta(plan.meta)
         val undo = buildJsonObject {
             put("snapshot", plans.encodeSnapshot(snap))
@@ -405,9 +404,11 @@ class ReplanTool(plans: PlanRepository, private val ai: PlanAi) : PlanWriteTool(
             if (args.bool("allow_fallback") != true) throw e
             return localFallback(today, reason, e.message)
         }
-        // 今天已完成的训练保留
-        val keep = plans.range(today, to).filter { it.status == DayStatus.DONE && days.none { d -> d.date == it.date } }
-        val snap = plans.replaceRange(today.toEpochDay(), to.toEpochDay(), days + keep)
+        // 已完成（包括今天已经打了部分卡）的训练保留，AI 在这些日期上的安排让位
+        val done = plans.range(today, to).filter { day ->
+            day.status == DayStatus.DONE || plans.exercisesOf(day).any { ex -> ex.sets.any { it.done } }
+        }
+        val snap = plans.replaceRange(today.toEpochDay(), to.toEpochDay(), days.filter { d -> done.none { it.date == d.date } } + done)
         return ToolOutcome(summary, "${args.str("label") ?: "AI 调整计划"}：$summary", undoData(snap))
     }
 

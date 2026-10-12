@@ -87,9 +87,12 @@ class AssistantEngine(
             try {
                 operations.undo(opId)
                 _items.update { list -> list.map { if (it.id == item.id) item.copy(undone = true) else it } }
-                // 让 AI 知道这次撤销，避免后续对话基于过时的数据
-                history += Msg.user("（我刚在界面上撤销了：${item.summary}）")
-                history += Msg.assistant("好的，已知晓该操作被撤销。")
+                // 让 AI 知道这次撤销，避免后续对话基于过时的数据。
+                // AI 正在处理时不能插入（会打断工具调用和结果的对应关系），它下次查询时会看到最新数据
+                if (!_busy.value) {
+                    history += Msg.user("（我刚在界面上撤销了：${item.summary}）")
+                    history += Msg.assistant("好的，已知晓该操作被撤销。")
+                }
             } catch (e: Exception) {
                 add(ChatItem.Error(id(), e.message ?: "撤销失败"))
             }

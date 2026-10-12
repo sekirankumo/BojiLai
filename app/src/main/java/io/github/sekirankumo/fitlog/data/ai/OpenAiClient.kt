@@ -154,7 +154,7 @@ class OpenAiClient(private val http: OkHttpClient) {
             .getOrElse { throw AiException("返回内容无法解析：${text.take(200)}") }
         val message = (root["choices"] as? JsonArray)?.firstOrNull()?.jsonObject?.get("message") as? JsonObject
             ?: throw AiException("返回格式异常：${text.take(200)}")
-        val content = (message["content"] as? JsonPrimitive)?.contentOrNull
+        val content = (message["content"] as? JsonPrimitive)?.contentOrNull?.let(::stripThinking)
         val calls = (message["tool_calls"] as? JsonArray).orEmpty().mapIndexed { i, el ->
             val o = el.jsonObject
             val fn = o["function"]!!.jsonObject
@@ -188,9 +188,25 @@ class OpenAiClient(private val http: OkHttpClient) {
 }
 
 /** 从 AI 回复里取出 JSON（兼容 ```json 代码块包裹的情况） */
-fun extractJsonObject(text: String): JsonObject {
-    val start = text.indexOf('{')
+fun extractJsonObject(raw: String): JsonObject {
+    val text = stripThinking(raw)
+    val objStart = text.indexOf('{')
+    val arrStart = text.indexOf('[')
+    // 有的模型直接返回数组，包装成 {"items": [...]}
+    if (arrStart >= 0 && (objStart < 0 || arrStart < objStart)) {
+        val end = text.lastIndexOf(']')
+        if (end > arrStart) {
+            runCatching { Json.parseToJsonElement(text.substring(arrStart, end + 1)) as JsonArray }.getOrNull()?.let {
+                return buildJsonObject { put("items", it) }
+            }
+        }
+    }
     val end = text.lastIndexOf('}')
-    if (start < 0 || end <= start) throw AiException("AI 没有返回 JSON：${text.take(200)}")
-    return Json.parseToJsonElement(text.substring(start, end + 1)).jsonObject
+    if (objStart < 0 || end <= objStart) throw AiException("AI 没有返回 JSON：${text.take(200)}")
+    return runCatching { Json.parseToJsonElement(text.substring(objStart, end + 1)).jsonObject }
+        .getOrElse { throw AiException("AI 返回的 JSON 格式有误：${text.take(200)}") }
 }
+
+/** 去掉推理模型输出的 <think>…</think> 思考过程 */
+fun stripThinking(text: String): String =
+    text.replace(Regex("(?s)<think>.*?</think>"), "").trim()
