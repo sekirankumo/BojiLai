@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 哑铃图标，108dp 画布，主体在中间 66dp 安全区内 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,40h8v28h-8z M38,44h6v20h-6z M64,44h6v20h-6z M70,40h8v28h-8z M44,51h20v6h-20z M24,47h6v14h-6z M78,47h6v14h-6z" />
+</vector>

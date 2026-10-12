@@ -1,0 +1,103 @@
+import java.util.Properties
+
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
+}
+
+// CI 用 GitHub Actions 的运行序号作为版本号；本地编译默认为 1
+val ciVersionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
+
+// 签名：CI 从环境变量读取，本地从 keystore.properties 读取
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun signingValue(envKey: String, propKey: String): String? =
+    System.getenv(envKey) ?: keystoreProps.getProperty(propKey)
+
+val releaseStoreFile = signingValue("KEYSTORE_FILE", "storeFile")
+
+android {
+    namespace = "io.github.sekirankumo.fitlog"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "io.github.sekirankumo.fitlog"
+        minSdk = 29
+        targetSdk = 35
+        versionCode = ciVersionCode
+        versionName = "0.1.$ciVersionCode"
+
+        // 更新信息地址：GitHub Releases 最新版本里的 update.json
+        buildConfigField(
+            "String",
+            "UPDATE_URL",
+            "\"https://github.com/sekirankumo/FitLog/releases/latest/download/update.json\""
+        )
+    }
+
+    signingConfigs {
+        if (releaseStoreFile != null) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile)
+                storePassword = signingValue("KEYSTORE_PASSWORD", "storePassword")
+                keyAlias = signingValue("KEY_ALIAS", "keyAlias")
+                keyPassword = signingValue("KEY_PASSWORD", "keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+        }
+        debug {
+            // 调试版也用正式密钥签名（若有），这样两者可以互相覆盖安装
+            signingConfigs.findByName("release")?.let { signingConfig = it }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+dependencies {
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.activity.compose)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.material.icons.extended)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.serialization.json)
+    debugImplementation(libs.androidx.ui.tooling)
+}
