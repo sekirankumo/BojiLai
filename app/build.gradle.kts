@@ -32,11 +32,11 @@ android {
         versionCode = ciVersionCode
         versionName = "0.1.$ciVersionCode"
 
-        // 更新信息地址：GitHub Releases 最新版本里的 update.json
+        // 更新信息：GitHub API 的最新发布（github.com 的直接下载地址在部分网络下会超时）
         buildConfigField(
             "String",
             "UPDATE_URL",
-            "\"https://github.com/sekirankumo/FitLog/releases/latest/download/update.json\""
+            "\"https://api.github.com/repos/sekirankumo/FitLog/releases/latest\""
         )
     }
 
@@ -53,7 +53,9 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
         debug {

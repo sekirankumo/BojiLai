@@ -13,19 +13,33 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 
-/** Releases 里 update.json 的内容，由 CI 生成 */
-@Serializable
 data class UpdateInfo(
     val versionCode: Int,
     val versionName: String,
+    /** GitHub API 的资源地址，需带 Accept: application/octet-stream 下载 */
     val apkUrl: String,
     val notes: String = "",
+)
+
+/** GitHub API /releases/latest 的返回内容（只取用到的字段） */
+@Serializable
+private data class GithubRelease(
+    @SerialName("tag_name") val tagName: String,
+    val body: String? = null,
+    val assets: List<GithubAsset> = emptyList(),
+)
+
+@Serializable
+private data class GithubAsset(
+    val name: String,
+    val url: String,
 )
 
 sealed interface UpdateState {
@@ -57,11 +71,14 @@ class UpdateManager(
         _state.value = UpdateState.Checking
         _state.value = try {
             val info = withContext(Dispatchers.IO) {
-                val req = Request.Builder().url(BuildConfig.UPDATE_URL).build()
+                val req = Request.Builder()
+                    .url(BuildConfig.UPDATE_URL)
+                    .header("Accept", "application/vnd.github+json")
+                    .build()
                 client.newCall(req).execute().use { resp ->
                     if (resp.code == 404) return@withContext null // 还没有任何发布
                     if (!resp.isSuccessful) error("HTTP ${resp.code}")
-                    json.decodeFromString<UpdateInfo>(resp.body!!.string())
+                    json.decodeFromString<GithubRelease>(resp.body!!.string()).toUpdateInfo()
                 }
             }
             if (info != null && info.versionCode > currentVersionCode) {
@@ -72,6 +89,18 @@ class UpdateManager(
         } catch (e: Exception) {
             UpdateState.Error("检查更新失败：${e.message}")
         }
+    }
+
+    /** 标签格式为 v0.1.<versionCode>，版本号取最后一段 */
+    private fun GithubRelease.toUpdateInfo(): UpdateInfo? {
+        val code = tagName.substringAfterLast('.').toIntOrNull() ?: return null
+        val apk = assets.firstOrNull { it.name.endsWith(".apk") } ?: return null
+        return UpdateInfo(
+            versionCode = code,
+            versionName = tagName.removePrefix("v"),
+            apkUrl = apk.url,
+            notes = body.orEmpty().substringBefore("\n\nCo-Authored-By").trim(),
+        )
     }
 
     fun dismiss() {
@@ -100,7 +129,10 @@ class UpdateManager(
     private suspend fun download(info: UpdateInfo): File = withContext(Dispatchers.IO) {
         val target = File(context.cacheDir, "update.apk")
         _state.value = UpdateState.Downloading(info, 0f)
-        val req = Request.Builder().url(info.apkUrl).build()
+        val req = Request.Builder()
+            .url(info.apkUrl)
+            .header("Accept", "application/octet-stream")
+            .build()
         client.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) error("下载失败 HTTP ${resp.code}")
             val body = resp.body!!

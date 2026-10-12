@@ -1,5 +1,5 @@
 # 推送到 main 分支后自动编译签名 APK，并发布到 GitHub Releases。
-# App 通过 releases/latest/download/update.json 检查更新。
+# App 通过 GitHub API 的 releases/latest 检查更新。
 name: Build & Release
 
 on:
@@ -55,11 +55,6 @@ jobs:
           APK="FitLog-${NAME}.apk"
           cp app/build/outputs/apk/release/app-release.apk "$APK"
           NOTES="$(git log -1 --pretty=%B)"
-          jq -n \
-            --argjson code "$VERSION_CODE" \
-            --arg name "$NAME" \
-            --arg url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${APK}" \
-            --arg notes "$NOTES" \
-            '{versionCode: $code, versionName: $name, apkUrl: $url, notes: $notes}' > update.json
-          gh release create "$TAG" "$APK" update.json \
+          # App 从标签最后一段读取 versionCode，标签格式不要改
+          gh release create "$TAG" "$APK" \
             --title "FitLog ${NAME}" --notes "$NOTES" --latest
