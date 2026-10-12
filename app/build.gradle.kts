@@ -101,5 +101,8 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.coil.compose)
+    implementation(libs.androidx.exifinterface)
+    implementation(libs.androidx.health.connect)
     debugImplementation(libs.androidx.ui.tooling)
 }

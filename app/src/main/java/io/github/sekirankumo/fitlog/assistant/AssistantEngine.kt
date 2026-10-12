@@ -1,6 +1,7 @@
 package io.github.sekirankumo.fitlog.assistant
 
 import io.github.sekirankumo.fitlog.assistant.tools.describe
+import io.github.sekirankumo.fitlog.data.ProfileRepository
 import io.github.sekirankumo.fitlog.data.ai.AiSettingsRepository
 import io.github.sekirankumo.fitlog.data.ai.Msg
 import io.github.sekirankumo.fitlog.data.ai.OpenAiClient
@@ -47,7 +48,11 @@ class AssistantEngine(
     private val registry: ToolRegistry,
     private val operations: OperationService,
     private val db: AppDatabase,
+    private val profile: ProfileRepository,
 ) {
+    /** 其他页面跳转到助手时预填的输入内容 */
+    val prefill = MutableStateFlow<String?>(null)
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val nextId = AtomicLong(1)
     private val history = mutableListOf<JsonObject>()
@@ -196,19 +201,34 @@ class AssistantEngine(
     }
 
     private suspend fun systemPrompt(): String {
-        val latest = db.bodyRecordDao().latest()
+        val latestWeight = db.bodyRecordDao().latestWeight()
+        val p = profile.current()
+        val targets = profile.currentTargets()
+        val today = java.time.LocalDate.now()
+        val food = db.foodDao().range(
+            io.github.sekirankumo.fitlog.data.diet.DietRepository.dayStart(today),
+            io.github.sekirankumo.fitlog.data.diet.DietRepository.dayStart(today.plusDays(1)),
+        )
+        val todayPlan = db.planDao().get(today.toEpochDay())
         return """
-            你是 FitLog 应用内置的 AI 助手，帮助用户记录饮食、训练和身体数据。用简洁的中文回答。
+            你是 FitLog 应用内置的 AI 助手兼私人教练和营养师，帮助用户记录饮食、安排训练、跟踪身体数据。用简洁的中文回答。
             当前时间：${TimeUtil.nowForPrompt()}
 
-            你可以调用工具读取和修改 App 里的数据，规则：
+            你可以调用工具读取和修改 App 里的所有数据，规则：
             - 需要数据时先用工具查询，不要编造数据。
             - 用户说的相对时间（如"今天早上""昨晚"）要换算成 yyyy-MM-dd HH:mm 再传给工具；"早上"没说具体时间就用 08:00。
-            - 修改类操作会先给用户确认，执行结果会通过工具返回告诉你；用户取消就不要再重复尝试。
-            - 用户想撤销之前的修改时，先用 list_recent_operations 找到对应操作，再调用 undo_operation。
-            - 目前已上线：身体数据（体重、体脂）、页面跳转、操作记录与撤销。饮食记录和训练计划还在开发中，用户问到时说明尚未上线。
+            - 用户说吃了什么时，你自己估算份量和营养后调用 add_food_entries，每种食物一条；中式菜品要把烹调用油算进去。收藏的常吃食物优先用 list_favorite_foods 里的数值。
+            - 训练相关：安排或替换动作前先用 search_exercises 查动作库，exercise_id 必须来自动作库；打卡前先用 get_training_day 看编号。
+            - 用户说某个动作做不了时，找 2–3 个锻炼相同肌群、符合用户器材的替代动作让用户选，再用 replace_exercise。
+            - 用户提到伤病、身体限制、饮食习惯、训练偏好等长期信息时，用 remember_user_info 记下来。
+            - 修改类操作会先给用户确认（用户也可能设置了直接执行），执行结果会通过工具返回告诉你；用户取消就不要再重复尝试。
+            - 用户想撤销之前的修改（包括漏打卡后的自动调整）时，先用 list_recent_operations 找到对应操作，再调用 undo_operation。
 
-            用户最新的身体数据：${latest?.describe() ?: "暂无"}
+            用户信息：${p.describe(latestWeight?.weightKg)}
+            每日营养目标：${targets.kcal}kcal 蛋白${targets.proteinG}g 脂肪${targets.fatG}g 碳水${targets.carbsG}g
+            今天已摄入：${food.sumOf { it.kcal }.toInt()}kcal（${food.size} 条记录）
+            今天的训练：${todayPlan?.let { "${it.title}（${io.github.sekirankumo.fitlog.data.db.DayStatus.label(it.status)}）" } ?: "休息日或没有计划"}
+            最新体重记录：${latestWeight?.describe() ?: "暂无"}
         """.trimIndent()
     }
 

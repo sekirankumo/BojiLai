@@ -9,16 +9,26 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * 本地数据库。每次改表结构都要把 version + 1 并在 MIGRATIONS 里写迁移，
- * 否则远程更新后会丢数据。
+ * 否则远程更新后会丢数据。建表语句以 CI 导出的 app/schemas 为准。
  */
 @Database(
-    entities = [BodyRecord::class, OpLog::class],
-    version = 2,
+    entities = [
+        BodyRecord::class,
+        OpLog::class,
+        FoodEntry::class,
+        FavoriteFood::class,
+        PlanDay::class,
+        KeyValue::class,
+    ],
+    version = 3,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun bodyRecordDao(): BodyRecordDao
     abstract fun opLogDao(): OpLogDao
+    abstract fun foodDao(): FoodDao
+    abstract fun planDao(): PlanDao
+    abstract fun kvDao(): KeyValueDao
 
     companion object {
         fun create(context: Context): AppDatabase =
@@ -39,6 +49,55 @@ private val MIGRATIONS = arrayOf(
                     "`summary` TEXT NOT NULL, " +
                     "`undoJson` TEXT, " +
                     "`undone` INTEGER NOT NULL)"
+            )
+        }
+    },
+    object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `body_record` ADD COLUMN `externalId` TEXT")
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `food_entry` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`eatenAt` INTEGER NOT NULL, " +
+                    "`meal` TEXT NOT NULL, " +
+                    "`name` TEXT NOT NULL, " +
+                    "`amount` TEXT, " +
+                    "`grams` REAL, " +
+                    "`kcal` REAL NOT NULL, " +
+                    "`proteinG` REAL NOT NULL, " +
+                    "`fatG` REAL NOT NULL, " +
+                    "`carbsG` REAL NOT NULL, " +
+                    "`source` TEXT NOT NULL, " +
+                    "`note` TEXT)"
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `favorite_food` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`name` TEXT NOT NULL, " +
+                    "`amount` TEXT, " +
+                    "`grams` REAL, " +
+                    "`kcal` REAL NOT NULL, " +
+                    "`proteinG` REAL NOT NULL, " +
+                    "`fatG` REAL NOT NULL, " +
+                    "`carbsG` REAL NOT NULL, " +
+                    "`useCount` INTEGER NOT NULL, " +
+                    "`lastUsedAt` INTEGER NOT NULL)"
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `plan_day` (" +
+                    "`date` INTEGER NOT NULL, " +
+                    "`title` TEXT NOT NULL, " +
+                    "`exercisesJson` TEXT NOT NULL, " +
+                    "`status` TEXT NOT NULL, " +
+                    "`note` TEXT, " +
+                    "`completedAt` INTEGER, " +
+                    "PRIMARY KEY(`date`))"
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `kv` (" +
+                    "`key` TEXT NOT NULL, " +
+                    "`value` TEXT NOT NULL, " +
+                    "PRIMARY KEY(`key`))"
             )
         }
     },

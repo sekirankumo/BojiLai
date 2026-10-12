@@ -3,6 +3,7 @@ package io.github.sekirankumo.fitlog.assistant
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
@@ -69,6 +70,24 @@ fun integerProp(description: String) = buildJsonObject {
     put("description", description)
 }
 
+fun booleanProp(description: String) = buildJsonObject {
+    put("type", "boolean")
+    put("description", description)
+}
+
+/** 对象数组参数 */
+fun arrayProp(description: String, item: JsonObject) = buildJsonObject {
+    put("type", "array")
+    put("description", description)
+    put("items", item)
+}
+
+fun stringArrayProp(description: String) = buildJsonObject {
+    put("type", "array")
+    put("description", description)
+    putJsonObject("items") { put("type", "string") }
+}
+
 // ---------- 参数读取 ----------
 
 private fun JsonObject.prim(key: String): JsonPrimitive? = (this[key] as? JsonPrimitive)?.takeIf { it.contentOrNull != null }
@@ -79,3 +98,13 @@ fun JsonObject.long(key: String): Long? = prim(key)?.let { it.longOrNull ?: it.c
 fun JsonObject.has(key: String): Boolean = this[key] != null && prim(key) != null
 
 fun JsonObject.requireLong(key: String): Long = long(key) ?: throw ToolException("缺少参数 $key")
+
+fun JsonObject.requireStr(key: String): String = str(key) ?: throw ToolException("缺少参数 $key")
+
+fun JsonObject.bool(key: String): Boolean? = prim(key)?.let { it.booleanOrNull ?: it.contentOrNull?.toBooleanStrictOrNull() }
+
+fun JsonObject.objects(key: String): List<JsonObject> =
+    (this[key] as? kotlinx.serialization.json.JsonArray).orEmpty().mapNotNull { it as? JsonObject }
+
+fun JsonObject.strings(key: String): List<String> =
+    (this[key] as? kotlinx.serialization.json.JsonArray).orEmpty().mapNotNull { (it as? JsonPrimitive)?.contentOrNull }

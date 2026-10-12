@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 通知栏小图标：哑铃 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M5,8h2v8h-2z M7,9.5h1.5v5h-1.5z M15.5,9.5h1.5v5h-1.5z M17,8h2v8h-2z M8.5,11.25h7v1.5h-7z M3.5,10h1.5v4h-1.5z M19,10h1.5v4h-1.5z" />
+</vector>

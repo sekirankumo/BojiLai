@@ -21,6 +21,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Mic
+import io.github.sekirankumo.fitlog.ui.components.rememberSpeechInput
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -53,6 +55,17 @@ fun AssistantScreen(engine: AssistantEngine) {
     val busy by engine.busy.collectAsState()
     var input by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
+
+    val speech = rememberSpeechInput("请说") { said -> input = if (input.isBlank()) said else "$input $said" }
+
+    // 从其他页面带过来的预填内容
+    val prefill by engine.prefill.collectAsState()
+    LaunchedEffect(prefill) {
+        prefill?.let {
+            input = it
+            engine.prefill.value = null
+        }
+    }
 
     LaunchedEffect(items.size, busy) {
         val count = items.size + if (busy) 1 else 0
@@ -92,11 +105,14 @@ fun AssistantScreen(engine: AssistantEngine) {
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            IconButton(onClick = speech, enabled = !busy) {
+                Icon(Icons.Filled.Mic, contentDescription = "语音输入")
+            }
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("比如：今天早上体重 72.5，体脂 18") },
+                placeholder = { Text("说点什么，或点麦克风") },
                 maxLines = 4,
             )
             IconButton(
@@ -118,11 +134,13 @@ private fun EmptyHint() {
         Text("可以直接对我说：", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.size(8.dp))
         listOf(
+            "中午吃了一碗牛肉面，加了个卤蛋",
             "今天早上体重 72.5，体脂 18.2",
-            "我最近一个月体重变化怎么样？",
-            "把昨天那条体重改成 72.1",
-            "撤销刚才的修改",
-            "打开身体数据页面",
+            "今天的卧推做不了，肩膀有点疼，换个动作",
+            "深蹲 4 组都做完了，60 公斤",
+            "下周出差没有器材，把计划改成徒手训练",
+            "我这周蛋白质吃够了吗？",
+            "撤销刚才的自动调整",
         ).forEach {
             Text("· $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

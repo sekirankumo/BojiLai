@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 拍照临时文件 -->
+<paths>
+    <cache-path name="photos" path="photos/" />
+</paths>

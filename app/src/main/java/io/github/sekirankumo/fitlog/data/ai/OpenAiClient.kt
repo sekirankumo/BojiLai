@@ -92,6 +92,24 @@ class OpenAiClient(private val http: OkHttpClient) {
         tools: List<JsonObject> = emptyList(),
         jsonMode: Boolean = false,
         temperature: Double? = null,
+    ): ChatResult = try {
+        chatOnce(provider, model, messages, tools, jsonMode, temperature)
+    } catch (e: AiException) {
+        // 部分服务或模型不支持 response_format，去掉后重试一次
+        if (jsonMode && (e.message?.contains("HTTP 400") == true || e.message?.contains("HTTP 422") == true)) {
+            chatOnce(provider, model, messages, tools, false, temperature)
+        } else {
+            throw e
+        }
+    }
+
+    private suspend fun chatOnce(
+        provider: AiProvider,
+        model: String,
+        messages: List<JsonObject>,
+        tools: List<JsonObject>,
+        jsonMode: Boolean,
+        temperature: Double?,
     ): ChatResult = withContext(Dispatchers.IO) {
         val body = buildJsonObject {
             put("model", model)

@@ -116,8 +116,12 @@ class UpdateManager(
             Uri.parse("package:${context.packageName}"),
         ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
+    /** 安装更新前执行（自动备份数据） */
+    var beforeInstall: (suspend () -> Unit)? = null
+
     suspend fun downloadAndInstall(info: UpdateInfo) {
         try {
+            runCatching { beforeInstall?.invoke() }
             val apk = download(info)
             _state.value = UpdateState.Installing
             withContext(Dispatchers.IO) { install(apk) }
