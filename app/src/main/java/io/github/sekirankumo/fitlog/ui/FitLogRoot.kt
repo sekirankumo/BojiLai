@@ -1,9 +1,12 @@
 package io.github.sekirankumo.fitlog.ui
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Restaurant
@@ -30,6 +33,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import io.github.sekirankumo.fitlog.AppContainer
+import io.github.sekirankumo.fitlog.ui.screens.AiSettingsScreen
 import io.github.sekirankumo.fitlog.ui.screens.AssistantScreen
 import io.github.sekirankumo.fitlog.ui.screens.BodyScreen
 import io.github.sekirankumo.fitlog.ui.screens.DietScreen
@@ -44,10 +48,12 @@ private enum class Tab(val route: String, val label: String, val icon: ImageVect
     Body("body", "身体", Icons.Filled.MonitorWeight),
 }
 
+// 路由名与 OpenPageTool 的 APP_PAGES 保持一致
 private const val ROUTE_SETTINGS = "settings"
+private const val ROUTE_AI_SETTINGS = "ai_settings"
 private const val ROUTE_ASSISTANT = "assistant"
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FitLogRoot(container: AppContainer) {
     val nav = rememberNavController()
@@ -59,6 +65,22 @@ fun FitLogRoot(container: AppContainer) {
     LaunchedEffect(Unit) { container.updateManager.check() }
     UpdateDialog(container.updateManager)
 
+    // AI 助手请求的页面跳转
+    LaunchedEffect(Unit) {
+        container.navEvents.collect { target ->
+            val tab = Tab.entries.firstOrNull { it.route == target }
+            if (tab != null) {
+                nav.navigate(tab.route) {
+                    popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            } else {
+                nav.navigate(target) { launchSingleTop = true }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -66,6 +88,7 @@ fun FitLogRoot(container: AppContainer) {
                     Text(
                         when (route) {
                             ROUTE_SETTINGS -> "设置"
+                            ROUTE_AI_SETTINGS -> "AI 服务"
                             ROUTE_ASSISTANT -> "AI 助手"
                             else -> currentTab?.label ?: ""
                         }
@@ -82,6 +105,11 @@ fun FitLogRoot(container: AppContainer) {
                     if (currentTab != null) {
                         IconButton(onClick = { nav.navigate(ROUTE_SETTINGS) }) {
                             Icon(Icons.Filled.Settings, contentDescription = "设置")
+                        }
+                    }
+                    if (route == ROUTE_ASSISTANT) {
+                        IconButton(onClick = { container.assistant.clear() }) {
+                            Icon(Icons.Filled.DeleteSweep, contentDescription = "清空对话")
                         }
                     }
                 },
@@ -121,14 +149,17 @@ fun FitLogRoot(container: AppContainer) {
         NavHost(
             navController = nav,
             startDestination = Tab.Today.route,
-            modifier = Modifier.padding(padding),
+            modifier = Modifier.padding(padding).consumeWindowInsets(padding),
         ) {
             composable(Tab.Today.route) { TodayScreen() }
             composable(Tab.Diet.route) { DietScreen() }
             composable(Tab.Training.route) { TrainingScreen() }
-            composable(Tab.Body.route) { BodyScreen() }
-            composable(ROUTE_SETTINGS) { SettingsScreen(container) }
-            composable(ROUTE_ASSISTANT) { AssistantScreen() }
+            composable(Tab.Body.route) { BodyScreen(container.database.bodyRecordDao()) }
+            composable(ROUTE_SETTINGS) {
+                SettingsScreen(container, onOpenAiSettings = { nav.navigate(ROUTE_AI_SETTINGS) })
+            }
+            composable(ROUTE_AI_SETTINGS) { AiSettingsScreen(container) }
+            composable(ROUTE_ASSISTANT) { AssistantScreen(container.assistant) }
         }
     }
 }

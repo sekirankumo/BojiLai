@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -21,7 +22,7 @@ import io.github.sekirankumo.fitlog.update.UpdateState
 import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsScreen(container: AppContainer) {
+fun SettingsScreen(container: AppContainer, onOpenAiSettings: () -> Unit) {
     val updater = container.updateManager
     val state by updater.state.collectAsState()
     val scope = rememberCoroutineScope()
@@ -29,8 +30,9 @@ fun SettingsScreen(container: AppContainer) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         SectionTitle("AI 服务")
         ListItem(
+            modifier = Modifier.clickable(onClick = onOpenAiSettings),
             headlineContent = { Text("AI 服务配置") },
-            supportingContent = { Text("添加 API Key、选择模型（M1 开发中）") },
+            supportingContent = { Text("添加 API Key、选择模型、测试连接") },
         )
         HorizontalDivider()
 

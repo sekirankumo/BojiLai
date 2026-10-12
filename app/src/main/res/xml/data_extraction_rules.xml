@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ 备份规则：AI 设置里有 API Key，不进入云备份和设备迁移 -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="datastore/ai_settings.preferences_pb" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="datastore/ai_settings.preferences_pb" />
+    </device-transfer>
+</data-extraction-rules>

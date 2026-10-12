@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Entity
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Update
@@ -17,7 +18,7 @@ data class BodyRecord(
     val measuredAt: Long,
     val weightKg: Double?,
     val bodyFatPct: Double?,
-    /** 数据来源：manual / health_connect / scale */
+    /** 数据来源：manual / ai / health_connect / scale */
     val source: String = "manual",
     val note: String? = null,
 )
@@ -30,7 +31,17 @@ interface BodyRecordDao {
     @Query("SELECT * FROM body_record ORDER BY measuredAt DESC LIMIT 1")
     fun observeLatest(): Flow<BodyRecord?>
 
-    @Insert
+    @Query("SELECT * FROM body_record ORDER BY measuredAt DESC LIMIT 1")
+    suspend fun latest(): BodyRecord?
+
+    @Query("SELECT * FROM body_record WHERE measuredAt >= :from ORDER BY measuredAt DESC")
+    suspend fun since(from: Long): List<BodyRecord>
+
+    @Query("SELECT * FROM body_record WHERE id = :id")
+    suspend fun get(id: Long): BodyRecord?
+
+    /** REPLACE：撤销删除时按原 id 重新插入 */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: BodyRecord): Long
 
     @Update
@@ -38,4 +49,7 @@ interface BodyRecordDao {
 
     @Delete
     suspend fun delete(record: BodyRecord)
+
+    @Query("DELETE FROM body_record WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

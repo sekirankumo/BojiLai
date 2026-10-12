@@ -39,8 +39,3 @@ fun DietScreen() = ComingSoon("饮食记录", "拍照 / 语音 / 文字识别将
 @Composable
 fun TrainingScreen() = ComingSoon("训练计划", "日历、打卡和 AI 生成计划将在 M4 完成")
 
-@Composable
-fun BodyScreen() = ComingSoon("身体数据", "体重体脂记录和趋势图将在 M1 完成")
-
-@Composable
-fun AssistantScreen() = ComingSoon("AI 助手", "可以操控全部功能的 AI 助手将从 M1 开始逐步接入")
