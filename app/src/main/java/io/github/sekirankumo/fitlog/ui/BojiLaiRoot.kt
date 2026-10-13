@@ -282,8 +282,9 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
 @Composable
 private fun BottomBar(current: Tab, onTab: (Tab) -> Unit, onAi: () -> Unit) {
     val colors = Brand.colors
-    Surface(color = colors.surface) {
-        Column {
+    // 用不裁剪的 Box 叠放：底栏在下，「问 AI」按钮浮在上面，凸出的部分不会被切掉
+    Box(Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().background(colors.surface)) {
             HorizontalDivider(color = colors.line)
             Row(
                 Modifier.fillMaxWidth().navigationBarsPadding().height(64.dp),
@@ -291,23 +292,25 @@ private fun BottomBar(current: Tab, onTab: (Tab) -> Unit, onAi: () -> Unit) {
             ) {
                 TabItem(Tab.Today, current, onTab)
                 TabItem(Tab.Diet, current, onTab)
-                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Surface(
-                        onClick = onAi,
-                        shape = CircleShape,
-                        color = colors.brand,
-                        border = BorderStroke(4.dp, colors.surface),
-                        shadowElevation = 6.dp,
-                        modifier = Modifier.size(60.dp).offset(y = (-14).dp),
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
-                            Icon(Icons.Filled.AutoAwesome, contentDescription = "问 AI", tint = colors.onBrand, modifier = Modifier.size(22.dp))
-                            Text("问 AI", style = MaterialTheme.typography.labelSmall, color = colors.onBrand, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
+                Box(Modifier.weight(1f))
                 TabItem(Tab.Training, current, onTab)
                 TabItem(Tab.Body, current, onTab)
+            }
+        }
+        Surface(
+            onClick = onAi,
+            shape = CircleShape,
+            color = colors.brand,
+            border = BorderStroke(4.dp, colors.surface),
+            shadowElevation = 6.dp,
+            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-20).dp).size(64.dp),
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+            ) {
+                Icon(Icons.Filled.AutoAwesome, contentDescription = "问 AI", tint = colors.onBrand, modifier = Modifier.size(22.dp))
+                Text("问 AI", style = MaterialTheme.typography.labelSmall, color = colors.onBrand, fontWeight = FontWeight.Bold)
             }
         }
     }
