@@ -173,6 +173,14 @@ details p { color: var(--muted); margin: 10px 0 0; }
 footer { padding: 40px 0 56px; color: var(--muted); font-size: 13px; text-align: center; }
 footer a { color: var(--muted); }
 
+/* 深色模式下的提示卡片 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .card-confirm { background: #3a3218; color: #f3e4b5; }
+  :root:not([data-theme="light"]) .notice { background: #1c2a3d; color: #c9dcf5; }
+}
+:root[data-theme="dark"] .card-confirm { background: #3a3218; color: #f3e4b5; }
+:root[data-theme="dark"] .notice { background: #1c2a3d; color: #c9dcf5; }
+
 @media (max-width: 860px) {
   .hero, .show { grid-template-columns: 1fr; gap: 32px; }
   .show.rev .show-text { order: 0; }
