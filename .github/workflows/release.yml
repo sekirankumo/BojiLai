@@ -22,6 +22,8 @@ jobs:
       VERSION_CODE: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
 
       - uses: actions/setup-java@v4
         with:
@@ -54,7 +56,8 @@ jobs:
           TAG="v${NAME}"
           APK="BojiLai-${NAME}.apk"
           cp app/build/outputs/apk/release/app-release.apk "$APK"
-          NOTES="$(git log -1 --pretty=%B)"
+          # 更新说明取最近一次改动了 App 的非合并提交（合并提交和只改文档的提交不算）
+          NOTES="$(git log -1 --no-merges --pretty=%B -- app/ gradle/ build.gradle.kts settings.gradle.kts)"
           # App 从标签最后一段读取 versionCode，标签格式不要改
           gh release create "$TAG" "$APK" \
             --title "薄肌来 ${NAME}" --notes "$NOTES" --latest
