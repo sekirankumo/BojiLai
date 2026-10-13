@@ -4,6 +4,7 @@ name: Check
 on:
   push:
     branches-ignore: [main]
+    paths-ignore: ["**.md", "docs/**"]
   workflow_dispatch:
 
 jobs:
