@@ -184,7 +184,7 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
             RowItem(
                 "从备份恢复",
                 subtitle = "用备份文件替换现在的全部数据",
-                icon = Icons.Filled.Restore,
+                icon = Icons.Filled.Download,
                 onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) },
                 trailing = chevron,
             )

@@ -2,7 +2,9 @@ package io.github.sekirankumo.fitlog
 
 import android.app.Application
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -58,7 +60,13 @@ class ScreenshotTest {
         runBlocking { SampleData.seed(container) }
     }
 
-    private fun shot(name: String, route: String, dark: Boolean = false, before: () -> Unit = {}) {
+    private fun shot(
+        name: String,
+        route: String,
+        dark: Boolean = false,
+        after: () -> Unit = {},
+        before: () -> Unit = {},
+    ) {
         before()
         compose.setContent {
             BojiLaiTheme(darkTheme = dark, fontFamily = font) {
@@ -70,6 +78,8 @@ class ScreenshotTest {
         compose.waitForIdle()
         compose.mainClock.advanceTimeBy(500)
         compose.waitForIdle()
+        after()
+        compose.waitForIdle()
         compose.onRoot().captureRoboImage("screenshots/$name.png")
     }
 
@@ -80,6 +90,11 @@ class ScreenshotTest {
         container.draftInbox.value = SampleData.drafts()
     }
     @Test fun training() = shot("training", "training")
+
+    /** 训练页往下滚动到当天的动作和打卡 */
+    @Test fun trainingDay() = shot("training_day", "training", after = {
+        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(2)
+    })
     @Test fun exercise() = shot("exercise", "exercise/Barbell_Bench_Press_-_Medium_Grip")
     @Test fun library() = shot("library", "exercise_library")
     @Test fun body() = shot("body", "body")
