@@ -3,6 +3,7 @@ package io.github.sekirankumo.fitlog.ui.screens
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,22 +16,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -46,10 +51,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import io.github.sekirankumo.fitlog.AppContainer
 import io.github.sekirankumo.fitlog.data.db.BodyRecord
-import io.github.sekirankumo.fitlog.data.db.BodyRecordDao
+import io.github.sekirankumo.fitlog.ui.components.BCard
 import io.github.sekirankumo.fitlog.ui.components.ChartPoint
+import io.github.sekirankumo.fitlog.ui.components.EmptyState
+import io.github.sekirankumo.fitlog.ui.components.Pill
+import io.github.sekirankumo.fitlog.ui.components.SectionHeader
+import io.github.sekirankumo.fitlog.ui.components.StatTile
 import io.github.sekirankumo.fitlog.ui.components.TrendChart
+import io.github.sekirankumo.fitlog.ui.theme.Brand
 import io.github.sekirankumo.fitlog.util.TimeUtil
 import io.github.sekirankumo.fitlog.util.fmt
 import kotlinx.coroutines.launch
@@ -78,8 +89,11 @@ private val SOURCE_LABELS = mapOf(
     "scale" to "体重秤",
 )
 
+
 @Composable
-fun BodyScreen(dao: BodyRecordDao) {
+fun BodyScreen(container: AppContainer) {
+    val c = Brand.colors
+    val dao = container.database.bodyRecordDao()
     val recordsFlow = remember(dao) { dao.observeAll() }
     val records by recordsFlow.collectAsState(initial = emptyList())
     var metric by remember { mutableStateOf(Metric.Weight) }
@@ -94,92 +108,97 @@ fun BodyScreen(dao: BodyRecordDao) {
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { SummaryCard(records, inRange) }
+            item { Summary(records, inRange, range) }
 
             item {
-                Card {
-                    Column(Modifier.padding(12.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Metric.entries.forEach { m ->
-                                FilterChip(
-                                    selected = metric == m,
-                                    onClick = { metric = m },
-                                    label = { Text("${m.label}（${m.unit}）") },
-                                )
-                            }
+                BCard {
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        Metric.entries.forEachIndexed { i, m ->
+                            SegmentedButton(
+                                selected = metric == m,
+                                onClick = { metric = m },
+                                shape = SegmentedButtonDefaults.itemShape(i, Metric.entries.size),
+                                colors = SegmentedButtonDefaults.colors(
+                                    activeContainerColor = c.brand,
+                                    activeContentColor = c.onBrand,
+                                    inactiveContainerColor = c.surface,
+                                    activeBorderColor = c.brand,
+                                    inactiveBorderColor = c.line,
+                                ),
+                                icon = {},
+                            ) { Text("${m.label}（${m.unit}）") }
                         }
-                        Spacer(Modifier.height(8.dp))
-                        TrendChart(points)
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Range.entries.forEach { r ->
-                                FilterChip(
-                                    selected = range == r,
-                                    onClick = { range = r },
-                                    label = { Text(r.label) },
-                                )
-                            }
-                        }
-                        Text(
-                            "粗线：7 天移动平均　细线：每次测量",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                     }
+                    Spacer(Modifier.height(12.dp))
+                    TrendChart(points)
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Range.entries.forEach { r ->
+                            FilterChip(selected = range == r, onClick = { range = r }, label = { Text(r.label) }, colors = chipColors())
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "粗线是 7 天移动平均，比每天的数字更能反映真实趋势",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = c.muted,
+                    )
                 }
             }
 
             item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("全部记录", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    OutlinedButton(onClick = { adding = true }) {
-                        Icon(Icons.Filled.Add, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text("记录")
+                SectionHeader("全部记录") {
+                    Surface(onClick = { adding = true }, shape = RoundedCornerShape(12.dp), color = c.brand) {
+                        Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.Add, contentDescription = null, tint = c.onBrand, modifier = Modifier.padding(end = 2.dp))
+                            Text("记录", style = MaterialTheme.typography.labelLarge, color = c.onBrand)
+                        }
                     }
                 }
             }
 
             if (records.isEmpty()) {
                 item {
-                    Text(
-                        "还没有记录。点「记录」手动添加，或者对 AI 说「今天体重 70 公斤」。",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    EmptyState(
+                        Icons.Filled.MonitorWeight,
+                        "还没有身体数据",
+                        "点「记录」手动添加，对 AI 说「今天体重 70 公斤」，或者在设置里打开小米运动健康同步。",
                     )
                 }
-            }
-
-            items(records, key = { it.id }) { r ->
-                Column {
-                    ListItem(
-                        modifier = Modifier.clickable { editing = r },
-                        headlineContent = {
-                            Text(
-                                listOfNotNull(
-                                    r.weightKg?.let { "${it.fmt()} kg" },
-                                    r.bodyFatPct?.let { "体脂 ${it.fmt()}%" },
-                                ).joinToString("　")
-                            )
-                        },
-                        supportingContent = {
-                            Text(listOfNotNull(TimeUtil.format(r.measuredAt), r.note).joinToString("　"))
-                        },
-                        trailingContent = {
-                            Text(
-                                SOURCE_LABELS[r.source] ?: r.source,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                    )
-                    HorizontalDivider()
+            } else {
+                item {
+                    BCard(padding = PaddingValues(vertical = 4.dp)) {
+                        records.forEachIndexed { i, r ->
+                            if (i > 0) HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = c.line)
+                            Row(
+                                Modifier.fillMaxWidth().clickable { editing = r }.padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.Bottom) {
+                                        Text(r.weightKg?.let { "${it.fmt()} kg" } ?: "—", style = MaterialTheme.typography.titleMedium)
+                                        r.bodyFatPct?.let {
+                                            Text("  体脂 ${it.fmt()}%", style = MaterialTheme.typography.bodyMedium, color = c.muted)
+                                        }
+                                    }
+                                    Text(
+                                        listOfNotNull(TimeUtil.format(r.measuredAt), r.note).joinToString(" · "),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = c.muted,
+                                    )
+                                }
+                                Pill(SOURCE_LABELS[r.source] ?: r.source, color = c.muted, background = c.surface2)
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 80.dp))
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp))
     }
 
     if (adding || editing != null) {
@@ -204,43 +223,32 @@ fun BodyScreen(dao: BodyRecordDao) {
 }
 
 @Composable
-private fun SummaryCard(all: List<BodyRecord>, inRange: List<BodyRecord>) {
+private fun Summary(all: List<BodyRecord>, inRange: List<BodyRecord>, range: Range) {
+    val c = Brand.colors
     val latestWeight = all.firstOrNull { it.weightKg != null }
     val latestFat = all.firstOrNull { it.bodyFatPct != null }
     val firstWeightInRange = inRange.lastOrNull { it.weightKg != null }
-
-    Card(Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(16.dp)) {
-            Column(Modifier.weight(1f)) {
-                Text("最新体重", style = MaterialTheme.typography.labelMedium)
-                Text(
-                    latestWeight?.weightKg?.let { "${it.fmt()} kg" } ?: "—",
-                    style = MaterialTheme.typography.headlineMedium,
-                )
-                val delta = latestWeight?.weightKg?.let { w -> firstWeightInRange?.weightKg?.let { w - it } }
-                if (delta != null && firstWeightInRange !== latestWeight) {
-                    Text(
-                        "区间内 ${if (delta >= 0) "+" else ""}${delta.fmt()} kg",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            Column(Modifier.weight(1f)) {
-                Text("最新体脂率", style = MaterialTheme.typography.labelMedium)
-                Text(
-                    latestFat?.bodyFatPct?.let { "${it.fmt()}%" } ?: "—",
-                    style = MaterialTheme.typography.headlineMedium,
-                )
-                latestWeight?.let {
-                    Text(
-                        TimeUtil.formatShort(it.measuredAt),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
+    val firstFatInRange = inRange.lastOrNull { it.bodyFatPct != null }
+    val wDelta = latestWeight?.weightKg?.let { w -> firstWeightInRange?.takeIf { it !== latestWeight }?.weightKg?.let { w - it } }
+    val fDelta = latestFat?.bodyFatPct?.let { f -> firstFatInRange?.takeIf { it !== latestFat }?.bodyFatPct?.let { f - it } }
+    fun deltaText(d: Double?, unit: String) = d?.let { "${range.label}内 ${if (it >= 0) "+" else ""}${it.fmt()}$unit" }
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        StatTile(
+            label = "最新体重",
+            value = latestWeight?.weightKg?.fmt() ?: "—",
+            unit = "kg",
+            sub = deltaText(wDelta, " kg") ?: latestWeight?.let { TimeUtil.formatShort(it.measuredAt) } ?: "还没有记录",
+            subColor = if (wDelta != null && wDelta < 0) c.brand else c.muted,
+            modifier = Modifier.weight(1f),
+        )
+        StatTile(
+            label = "最新体脂率",
+            value = latestFat?.bodyFatPct?.fmt() ?: "—",
+            unit = "%",
+            sub = deltaText(fDelta, "%") ?: latestFat?.let { TimeUtil.formatShort(it.measuredAt) } ?: "还没有记录",
+            subColor = if (fDelta != null && fDelta < 0) c.brand else c.muted,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 

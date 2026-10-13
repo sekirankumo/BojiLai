@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.roborazzi)
 }
 
 // CI 用 GitHub Actions 的运行序号作为版本号；本地编译默认为 1
@@ -73,6 +74,9 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
     buildFeatures {
         compose = true
         buildConfig = true
@@ -107,4 +111,14 @@ dependencies {
     implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.health.connect)
     debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.test.manifest)
+
+    // 截图测试（Robolectric + Roborazzi），生成介绍页用的真实界面截图
+    testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.junit)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.ui.test.junit4)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
 }

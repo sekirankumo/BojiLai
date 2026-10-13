@@ -4,41 +4,49 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -52,6 +60,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -60,8 +69,13 @@ import coil.compose.AsyncImage
 import io.github.sekirankumo.fitlog.AppContainer
 import io.github.sekirankumo.fitlog.data.diet.FoodDraft
 import io.github.sekirankumo.fitlog.data.diet.FoodPhoto
+import io.github.sekirankumo.fitlog.ui.components.BCard
 import io.github.sekirankumo.fitlog.ui.components.FoodDraftEditor
+import io.github.sekirankumo.fitlog.ui.components.IconBadge
+import io.github.sekirankumo.fitlog.ui.components.Pill
+import io.github.sekirankumo.fitlog.ui.components.SectionHeader
 import io.github.sekirankumo.fitlog.ui.components.rememberSpeechInput
+import io.github.sekirankumo.fitlog.ui.theme.Brand
 import io.github.sekirankumo.fitlog.util.ImageUtil
 import io.github.sekirankumo.fitlog.util.TimeUtil
 import io.github.sekirankumo.fitlog.util.fmt
@@ -72,19 +86,29 @@ import java.time.LocalDate
 private data class PickedPhoto(val uri: Uri, val photo: FoodPhoto?)
 
 /**
- * 添加饮食：拍照 / 相册 / 语音 / 文字输入 → AI 识别 → 逐条确认修改 → 保存。
+ * 记一餐：拍照 / 相册 / 语音 / 文字都在这一页 → AI 识别 → 逐条确认修改 → 保存。
  * 也可以直接从「常吃」里选，或手动添加。
  */
 @Composable
-fun AddFoodScreen(container: AppContainer, mode: String, day: LocalDate, onDone: () -> Unit) {
+fun AddFoodScreen(
+    container: AppContainer,
+    day: LocalDate,
+    onDone: () -> Unit,
+
+) {
+    val c = Brand.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val photos = remember { mutableStateListOf<PickedPhoto>() }
-    val drafts = remember { mutableStateListOf<FoodDraft>() }
+    val drafts = remember {
+        mutableStateListOf<FoodDraft>().apply {
+            addAll(container.draftInbox.value)
+            container.draftInbox.value = emptyList()
+        }
+    }
     var text by rememberSaveable { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
-    var started by rememberSaveable { mutableStateOf(false) }
     val favoritesFlow = remember { container.database.foodDao().observeFavorites() }
     val favorites by favoritesFlow.collectAsState(initial = emptyList())
     val isToday = day == LocalDate.now()
@@ -127,20 +151,6 @@ fun AddFoodScreen(container: AppContainer, mode: String, day: LocalDate, onDone:
         cameraLauncher.launch(uri)
     }
 
-    fun pickGallery() = galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-
-    // 从饮食页的按钮进来时，直接打开对应的输入方式
-    LaunchedEffect(Unit) {
-        if (!started) {
-            started = true
-            when (mode) {
-                "camera" -> takePhoto()
-                "gallery" -> pickGallery()
-                "voice" -> speech()
-            }
-        }
-    }
-
     fun recognize() {
         val ready = photos.mapNotNull { it.photo }
         if (ready.size < photos.size) {
@@ -148,7 +158,7 @@ fun AddFoodScreen(container: AppContainer, mode: String, day: LocalDate, onDone:
             return
         }
         if (ready.isEmpty() && text.isBlank()) {
-            message = "请先拍照或描述吃了什么"
+            message = "先拍张照片，或者说说吃了什么"
             return
         }
         busy = true
@@ -172,68 +182,81 @@ fun AddFoodScreen(container: AppContainer, mode: String, day: LocalDate, onDone:
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             if (!isToday) {
-                item { Text("补记 ${day} 的饮食", style = MaterialTheme.typography.titleSmall) }
+                item { Pill("补记 $day 的饮食", color = c.onAmber, background = c.amber) }
             }
+
+            // 输入区：拍照 / 相册 / 语音 + 文字描述
             item {
-                Card {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (photos.isNotEmpty()) {
-                            Row(
-                                Modifier.horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                photos.forEach { p ->
-                                    Box {
-                                        AsyncImage(
-                                            model = p.uri,
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.size(88.dp).clip(RoundedCornerShape(8.dp)),
-                                        )
-                                        if (p.photo == null) {
-                                            CircularProgressIndicator(Modifier.size(24.dp).align(Alignment.Center), strokeWidth = 2.dp)
-                                        }
-                                        Surface(
-                                            shape = RoundedCornerShape(50),
-                                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-                                            modifier = Modifier.align(Alignment.TopEnd).padding(2.dp),
-                                        ) {
-                                            IconButton(onClick = { photos.remove(p) }, modifier = Modifier.size(24.dp)) {
-                                                Icon(Icons.Filled.Close, contentDescription = "移除", modifier = Modifier.size(16.dp))
-                                            }
-                                        }
+                BCard {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        InputTile(Icons.Filled.CameraAlt, "拍照", Modifier.weight(1f)) { takePhoto() }
+                        InputTile(Icons.Filled.PhotoLibrary, "相册", Modifier.weight(1f)) {
+                            galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        }
+                        InputTile(Icons.Filled.Mic, "语音", Modifier.weight(1f), onClick = speech)
+                    }
+                    if (photos.isNotEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            photos.forEach { p ->
+                                Box {
+                                    AsyncImage(
+                                        model = p.uri,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.size(84.dp).clip(RoundedCornerShape(12.dp)),
+                                    )
+                                    if (p.photo == null) {
+                                        CircularProgressIndicator(Modifier.size(22.dp).align(Alignment.Center), strokeWidth = 2.dp)
+                                    }
+                                    Surface(
+                                        onClick = { photos.remove(p) },
+                                        shape = CircleShape,
+                                        color = c.text.copy(alpha = 0.6f),
+                                        modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(22.dp),
+                                    ) {
+                                        Icon(Icons.Filled.Close, contentDescription = "移除", tint = c.surface, modifier = Modifier.padding(3.dp))
                                     }
                                 }
                             }
                         }
-                        OutlinedTextField(
-                            value = text,
-                            onValueChange = { text = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("描述吃了什么，可以补充份量和时间，例如：中午公司楼下吃了黄焖鸡米饭，米饭只吃了一半") },
-                            minLines = 2,
-                            maxLines = 5,
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { takePhoto() }) { Icon(Icons.Filled.CameraAlt, contentDescription = "拍照") }
-                            IconButton(onClick = { pickGallery() }) { Icon(Icons.Filled.PhotoLibrary, contentDescription = "相册") }
-                            IconButton(onClick = speech) { Icon(Icons.Filled.Mic, contentDescription = "语音") }
-                            Box(Modifier.weight(1f))
-                            Button(onClick = { recognize() }, enabled = !busy) {
-                                if (busy) {
-                                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                                } else {
-                                    Icon(Icons.Filled.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                                }
-                                Text("  AI 识别")
-                            }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { text = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("也可以直接描述，例如：中午吃了黄焖鸡米饭，米饭只吃了一半") },
+                        minLines = 2,
+                        maxLines = 5,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedContainerColor = c.surface2,
+                            focusedContainerColor = c.surface2,
+                            unfocusedBorderColor = c.surface2,
+                        ),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = { recognize() },
+                        enabled = !busy,
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(14.dp),
+                    ) {
+                        if (busy) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = c.onBrand)
+                            Text("  AI 正在识别…")
+                        } else {
+                            Icon(Icons.Filled.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text("  AI 识别热量")
                         }
-                        message?.let {
-                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
-                        }
+                    }
+                    message?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = if (it.startsWith("识别失败")) c.danger else c.onAmber)
                     }
                 }
             }
@@ -241,15 +264,17 @@ fun AddFoodScreen(container: AppContainer, mode: String, day: LocalDate, onDone:
             if (favorites.isNotEmpty()) {
                 item {
                     Column {
-                        Text("常吃（点一下直接加入）", style = MaterialTheme.typography.titleSmall)
-                        Row(
-                            Modifier.horizontalScroll(rememberScrollState()).padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
+                        SectionHeader("常吃")
+                        Text("点一下直接加入，不用再识别", style = MaterialTheme.typography.bodySmall, color = c.muted)
+                        Spacer(Modifier.height(8.dp))
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             favorites.take(30).forEach { f ->
                                 AssistChip(
                                     onClick = { drafts += FoodDraft.fromFavorite(f, defaultTime) },
-                                    label = { Text("${f.name} ${f.kcal.fmt(0)}") },
+                                    label = { Text("${f.name} · ${f.kcal.fmt(0)}") },
+                                    leadingIcon = { Icon(Icons.Filled.Star, contentDescription = null, modifier = Modifier.size(16.dp), tint = c.fat) },
+                                    colors = AssistChipDefaults.assistChipColors(containerColor = c.surface),
+                                    border = AssistChipDefaults.assistChipBorder(enabled = true, borderColor = c.line),
                                 )
                             }
                         }
@@ -257,29 +282,33 @@ fun AddFoodScreen(container: AppContainer, mode: String, day: LocalDate, onDone:
                 }
             }
 
+            if (drafts.isNotEmpty()) {
+                item { SectionHeader("确认一下（${drafts.size} 项）") }
+            }
             items(drafts, key = { it.key }) { d ->
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
-                    Column(Modifier.padding(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                d.name.ifBlank { "新食物" },
-                                style = MaterialTheme.typography.titleSmall,
-                                modifier = Modifier.weight(1f),
-                            )
-                            IconButton(onClick = { drafts.remove(d) }) {
-                                Icon(Icons.Filled.Delete, contentDescription = "删除这一项")
-                            }
+                BCard {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            d.name.ifBlank { "新食物" },
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text("${d.kcal.fmt(0)} kcal", style = MaterialTheme.typography.titleMedium, color = c.brand)
+                        IconButton(onClick = { drafts.remove(d) }) {
+                            Icon(Icons.Filled.DeleteOutline, contentDescription = "删除这一项", tint = c.muted)
                         }
-                        FoodDraftEditor(d, { updated ->
-                            val i = drafts.indexOfFirst { it.key == d.key }
-                            if (i >= 0) drafts[i] = updated
-                        })
                     }
+                    HorizontalDivider(color = c.line)
+                    Spacer(Modifier.height(10.dp))
+                    FoodDraftEditor(d, { updated ->
+                        val i = drafts.indexOfFirst { it.key == d.key }
+                        if (i >= 0) drafts[i] = updated
+                    })
                 }
             }
 
             item {
-                OutlinedButton(onClick = { drafts += FoodDraft.blank(defaultTime) }) {
+                TextButton(onClick = { drafts += FoodDraft.blank(defaultTime) }) {
                     Icon(Icons.Filled.Add, contentDescription = null)
                     Text(" 手动添加一项")
                 }
@@ -287,26 +316,44 @@ fun AddFoodScreen(container: AppContainer, mode: String, day: LocalDate, onDone:
         }
 
         if (drafts.isNotEmpty()) {
-            Surface(tonalElevation = 3.dp) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "共 ${drafts.size} 项 · ${drafts.sumOf { it.kcal }.fmt(0)} kcal",
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleSmall,
-                    )
-                    Button(
-                        enabled = drafts.all { it.name.isNotBlank() },
-                        onClick = {
-                            val toSave = drafts.toList()
-                            container.appScope.launch { container.diet.saveDrafts(toSave) }
-                            onDone()
-                        },
-                    ) { Text("保存") }
+            Surface(color = c.surface) {
+                Column {
+                    HorizontalDivider(color = c.line)
+                    Row(
+                        Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("共 ${drafts.size} 项", style = MaterialTheme.typography.labelMedium, color = c.muted)
+                            Text("${drafts.sumOf { it.kcal }.fmt(0)} kcal", style = MaterialTheme.typography.titleLarge)
+                        }
+                        Button(
+                            enabled = drafts.all { it.name.isNotBlank() },
+                            shape = RoundedCornerShape(14.dp),
+                            contentPadding = PaddingValues(horizontal = 28.dp, vertical = 12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = c.brand),
+                            onClick = {
+                                val toSave = drafts.toList()
+                                container.appScope.launch { container.diet.saveDrafts(toSave) }
+                                onDone()
+                            },
+                        ) { Text("保存", style = MaterialTheme.typography.titleMedium) }
+                    }
                 }
             }
         }
     }
 }
+
+@Composable
+private fun InputTile(icon: ImageVector, label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val c = Brand.colors
+    Surface(onClick = onClick, shape = RoundedCornerShape(16.dp), color = c.brandSoft, modifier = modifier) {
+        Column(Modifier.padding(vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            IconBadge(icon, tint = c.onBrand, background = c.brand, size = 40.dp, corner = 20.dp)
+            Spacer(Modifier.height(6.dp))
+            Text(label, style = MaterialTheme.typography.labelLarge, color = c.brand)
+        }
+    }
+}
+

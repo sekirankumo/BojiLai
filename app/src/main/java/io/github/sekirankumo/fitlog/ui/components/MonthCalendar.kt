@@ -118,34 +118,39 @@ private fun DayCell(
     modifier: Modifier,
     onClick: () -> Unit,
 ) {
+    val brand = io.github.sekirankumo.fitlog.ui.theme.Brand.colors
     val color = statusColor(day?.status)
+    val shape = RoundedCornerShape(12.dp)
     Box(
         modifier
-            .aspectRatio(0.85f)
+            .aspectRatio(0.82f)
             .padding(2.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(shape)
             .background(
                 when {
-                    isSelected -> MaterialTheme.colorScheme.secondaryContainer
-                    day?.status == DayStatus.DONE -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                    day?.status == DayStatus.MISSED -> MaterialTheme.colorScheme.error.copy(alpha = 0.10f)
+                    isSelected -> brand.brand
+                    day?.status == DayStatus.DONE -> brand.brandSoft
+                    day?.status == DayStatus.MISSED -> brand.dangerSoft
+                    day != null -> brand.surface2
                     else -> Color.Transparent
                 }
             )
-            .then(
-                if (isToday) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp)) else Modifier
-            )
+            .then(if (isToday && !isSelected) Modifier.border(1.5.dp, brand.brand, shape) else Modifier)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.TopCenter,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 4.dp)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 5.dp)) {
             Text(
                 "${date.dayOfMonth}",
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) brand.onBrand else brand.text,
             )
             if (day != null) {
-                Box(Modifier.padding(top = 2.dp).size(6.dp).clip(CircleShape).background(color))
+                Box(
+                    Modifier.padding(top = 2.dp).size(5.dp).clip(CircleShape)
+                        .background(if (isSelected) brand.onBrand else color)
+                )
                 Text(
                     day.title,
                     fontSize = 9.sp,
@@ -153,8 +158,8 @@ private fun DayCell(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 1.dp),
+                    color = if (isSelected) brand.onBrand.copy(alpha = 0.9f) else brand.muted,
+                    modifier = Modifier.padding(horizontal = 2.dp, vertical = 1.dp),
                 )
             }
         }

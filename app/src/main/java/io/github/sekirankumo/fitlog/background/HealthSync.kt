@@ -37,7 +37,11 @@ class HealthSync(
         HealthPermission.getReadPermission(StepsRecord::class),
     )
 
-    fun sdkStatus(): Int = HealthConnectClient.getSdkStatus(context)
+    fun sdkStatus(): Int =
+        runCatching { HealthConnectClient.getSdkStatus(context) }.getOrDefault(HealthConnectClient.SDK_UNAVAILABLE)
+
+    /** 截图测试用：固定返回的步数 */
+    internal var previewSteps: Steps? = null
 
     fun isAvailable(): Boolean = sdkStatus() == HealthConnectClient.SDK_AVAILABLE
 
@@ -104,12 +108,22 @@ class HealthSync(
         added
     }
 
-    /** 今天的步数；没有授权或不可用时返回 null */
-    suspend fun todaySteps(): Long? {
-        if (!isAvailable()) return null
-        return runCatching {
+    /** 今天步数的读取结果，带上读不到的原因，方便排查 */
+    sealed interface Steps {
+        data object Unavailable : Steps
+        data object NotGranted : Steps
+        /** Health Connect 里今天没有任何 App 写入步数 */
+        data object NoData : Steps
+        data class Value(val count: Long, val sources: List<String>) : Steps
+        data class Failed(val message: String) : Steps
+    }
+
+    suspend fun todaySteps(): Steps {
+        previewSteps?.let { return it }
+        if (!isAvailable()) return Steps.Unavailable
+        return try {
             if (HealthPermission.getReadPermission(StepsRecord::class) !in client.permissionController.getGrantedPermissions()) {
-                return null
+                return Steps.NotGranted
             }
             val start = TimeUtil.toEpoch(LocalDate.now().atStartOfDay())
             val response = client.aggregate(
@@ -118,8 +132,27 @@ class HealthSync(
                     timeRangeFilter = TimeRangeFilter.between(Instant.ofEpochMilli(start), Instant.now()),
                 )
             )
-            response[StepsRecord.COUNT_TOTAL]
-        }.getOrNull()
+            val count = response[StepsRecord.COUNT_TOTAL]
+            val sources = response.dataOrigins.map { appLabel(it.packageName) }
+            if (count == null) Steps.NoData else Steps.Value(count, sources)
+        } catch (e: Exception) {
+            Steps.Failed(e.message ?: e.toString())
+        }
+    }
+
+    /** 常见健康 App 的中文名 */
+    private fun appLabel(pkg: String): String = when (pkg) {
+        "com.mi.health" -> "小米运动健康"
+        "com.xiaomi.wearable" -> "小米穿戴"
+        "com.xiaomi.hm.health" -> "Zepp Life"
+        "com.huami.watch.hmwatchmanager" -> "Zepp"
+        "com.google.android.apps.fitness" -> "Google Fit"
+        "com.samsung.android.shealth" -> "三星健康"
+        "com.google.android.apps.healthdata", "com.android.healthconnect.controller" -> "手机自带计步"
+        else -> runCatching {
+            val pm = context.packageManager
+            pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+        }.getOrDefault(pkg)
     }
 
     private companion object {

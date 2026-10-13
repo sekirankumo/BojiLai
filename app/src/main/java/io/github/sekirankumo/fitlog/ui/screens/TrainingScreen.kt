@@ -1,30 +1,34 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.EventAvailable
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -42,6 +46,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.sekirankumo.fitlog.AppContainer
 import io.github.sekirankumo.fitlog.data.db.DayStatus
@@ -51,10 +58,16 @@ import io.github.sekirankumo.fitlog.data.plan.PlanSet
 import io.github.sekirankumo.fitlog.data.plan.fmtKg
 import io.github.sekirankumo.fitlog.data.plan.formatDuration
 import io.github.sekirankumo.fitlog.data.plan.markDone
+import io.github.sekirankumo.fitlog.ui.components.BCard
+import io.github.sekirankumo.fitlog.ui.components.BarProgress
+import io.github.sekirankumo.fitlog.ui.components.EmptyState
+import io.github.sekirankumo.fitlog.ui.components.IconBadge
 import io.github.sekirankumo.fitlog.ui.components.MonthCalendar
 import io.github.sekirankumo.fitlog.ui.components.NumberField
+import io.github.sekirankumo.fitlog.ui.components.Pill
 import io.github.sekirankumo.fitlog.ui.components.rememberSpeechInput
 import io.github.sekirankumo.fitlog.ui.components.statusColor
+import io.github.sekirankumo.fitlog.ui.theme.Brand
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -92,73 +105,96 @@ fun TrainingScreen(container: AppContainer, nav: TrainingNav) {
     val lastWeights by produceState(emptyMap<String, Double>(), days) { value = plans.lastWeights() }
 
     LazyColumn(
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (!hasPlan) {
             item { EmptyPlan(nav) }
             return@LazyColumn
         }
         item {
-            Column {
-                meta?.let {
-                    Text(it.name, style = MaterialTheme.typography.titleMedium)
-                    if (it.summary.isNotBlank()) {
-                        Text(it.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val c = Brand.colors
+            BCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(Icons.Filled.EventAvailable)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(meta?.name ?: "我的训练计划", style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        meta?.let {
+                            Text(
+                                "${LocalDate.ofEpochDay(it.startDate).format(SHORT)} – ${LocalDate.ofEpochDay(it.endDate).format(SHORT)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = c.muted,
+                            )
+                        }
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(onClick = nav.openLibrary) {
-                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text(" 动作库")
-                    }
-                    TextButton(onClick = nav.openOperations) {
-                        Icon(Icons.Filled.History, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text(" 调整记录")
-                    }
-                    TextButton(onClick = nav.openGenerate) {
-                        Icon(Icons.Filled.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text(" 新计划")
-                    }
+                meta?.summary?.takeIf { it.isNotBlank() }?.let {
+                    Spacer(Modifier.height(8.dp))
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = c.muted, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SoftAction(Icons.AutoMirrored.Filled.MenuBook, "动作库", Modifier.weight(1f), nav.openLibrary)
+                    SoftAction(Icons.Filled.History, "调整记录", Modifier.weight(1f), nav.openOperations)
+                    SoftAction(Icons.Filled.AutoAwesome, "新计划", Modifier.weight(1f), nav.openGenerate)
                 }
             }
         }
         item {
-            Card {
-                Column(Modifier.padding(8.dp)) {
-                    MonthCalendar(
-                        month = month,
-                        days = days.associateBy { it.date },
-                        selected = selected,
-                        onSelect = { selectedEpoch = it.toEpochDay() },
-                        onMonthChange = { monthEpoch = it.atDay(1).toEpochDay() },
-                    )
-                }
+            BCard(padding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)) {
+                MonthCalendar(
+                    month = month,
+                    days = days.associateBy { it.date },
+                    selected = selected,
+                    onSelect = { selectedEpoch = it.toEpochDay() },
+                    onMonthChange = { monthEpoch = it.atDay(1).toEpochDay() },
+                )
             }
         }
         item { DayDetail(container, selected, day, lastWeights, nav) }
     }
 }
 
+private val SHORT = DateTimeFormatter.ofPattern("M月d日")
+
 @Composable
-private fun EmptyPlan(nav: TrainingNav) {
-    Card(Modifier.fillMaxWidth().padding(top = 24.dp)) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("还没有训练计划", style = MaterialTheme.typography.titleLarge)
-            Text(
-                "告诉 AI 你的目标、每周能练几天、有什么器材，它会从动作库里挑动作，帮你排好每天练什么、几组几次。",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Button(onClick = nav.openGenerate, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.AutoAwesome, contentDescription = null)
-                Text("  AI 生成训练计划")
-            }
-            OutlinedButton(onClick = nav.openLibrary, modifier = Modifier.fillMaxWidth()) { Text("先看看动作库") }
+private fun SoftAction(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
+    val c = Brand.colors
+    Surface(onClick = onClick, shape = RoundedCornerShape(14.dp), color = c.surface2, modifier = modifier) {
+        Row(
+            Modifier.padding(vertical = 10.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, tint = c.brand, modifier = Modifier.size(18.dp))
+            Text(" $label", style = MaterialTheme.typography.labelLarge, color = c.text)
         }
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
+@Composable
+private fun EmptyPlan(nav: TrainingNav) {
+    BCard(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+        EmptyState(
+            Icons.Filled.EventAvailable,
+            "还没有训练计划",
+            "告诉 AI 你的目标、每周能练几天、有什么器材，它会从动作库里挑动作，排好每天练什么、几组几次。",
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = nav.openGenerate, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(14.dp)) {
+                    Icon(Icons.Filled.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text("  AI 生成训练计划")
+                }
+                OutlinedButton(onClick = nav.openLibrary, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
+                    Text("先看看动作库")
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DayDetail(
     container: AppContainer,
@@ -167,9 +203,10 @@ private fun DayDetail(
     lastWeights: Map<String, Double>,
     nav: TrainingNav,
 ) {
+    val c = Brand.colors
     val plans = container.plans
     val scope = rememberCoroutineScope()
-    val dateText = date.format(DateTimeFormatter.ofPattern("M月d日")) + " " +
+    val dateText = date.format(DateTimeFormatter.ofPattern("M月d日 ")) +
         date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.CHINA)
     var editing by remember { mutableStateOf<Triple<Int, Int, PlanSet>?>(null) }
     var voiceBusy by remember { mutableStateOf(false) }
@@ -198,95 +235,149 @@ private fun DayDetail(
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (day == null) {
-            Text("$dateText · 休息日", style = MaterialTheme.typography.titleMedium)
-            OutlinedButton(onClick = { nav.askAi("我想在 $date 加一次训练，") }) {
-                Text("在这天安排训练（问 AI）")
+            BCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(Icons.Filled.SelfImprovement)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("$dateText · 休息日", style = MaterialTheme.typography.titleMedium)
+                        Text("这天没有安排训练", style = MaterialTheme.typography.bodySmall, color = c.muted)
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(onClick = { nav.askAi("我想在 $date 加一次训练，") }, shape = RoundedCornerShape(14.dp)) {
+                    Text("让 AI 在这天安排训练")
+                }
             }
             return@Column
         }
+
         val exercises = plans.exercisesOf(day)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("$dateText · ${day.title}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            Surface(shape = RoundedCornerShape(50), color = statusColor(day.status).copy(alpha = 0.15f)) {
-                Text(
-                    DayStatus.label(day.status),
-                    color = statusColor(day.status),
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                )
-            }
-        }
-        day.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         val doneSets = exercises.sumOf { ex -> ex.sets.count { it.done } }
         val totalSets = exercises.sumOf { it.sets.size }
-        Text(
-            "已完成 $doneSets / $totalSets 组 · 点一组打卡，长按修改实际次数和重量",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (!date.isAfter(LocalDate.now())) {
-                FilledTonalButton(onClick = speech, enabled = !voiceBusy) {
-                    if (voiceBusy) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                    else Icon(Icons.Filled.Mic, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text(" 语音打卡")
+        BCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(dateText, style = MaterialTheme.typography.labelMedium, color = c.muted)
+                    Text(day.title, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                if (day.status != DayStatus.DONE) {
-                    FilledTonalButton(onClick = { container.appScope.launch { plans.completeDay(date) } }) {
-                        Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text(" 全部完成")
+                val sc = statusColor(day.status)
+                Pill(DayStatus.label(day.status), color = sc, background = sc.copy(alpha = 0.14f))
+            }
+            day.note?.let {
+                Spacer(Modifier.height(6.dp))
+                Text(it, style = MaterialTheme.typography.bodySmall, color = c.muted)
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                BarProgress(if (totalSets == 0) 0f else doneSets.toFloat() / totalSets, Modifier.weight(1f))
+                Spacer(Modifier.width(10.dp))
+                Text("$doneSets / $totalSets 组", style = MaterialTheme.typography.labelMedium, color = c.muted)
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!date.isAfter(LocalDate.now())) {
+                    Surface(
+                        onClick = speech,
+                        enabled = !voiceBusy,
+                        shape = RoundedCornerShape(14.dp),
+                        color = c.brand,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Row(Modifier.padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                            if (voiceBusy) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = c.onBrand)
+                            else Icon(Icons.Filled.Mic, contentDescription = null, tint = c.onBrand, modifier = Modifier.size(18.dp))
+                            Text(" 语音打卡", style = MaterialTheme.typography.labelLarge, color = c.onBrand)
+                        }
+                    }
+                    if (day.status != DayStatus.DONE) {
+                        SoftAction(Icons.Filled.CheckCircle, "全部完成", Modifier.weight(1f)) {
+                            container.appScope.launch { plans.completeDay(date) }
+                        }
                     }
                 }
+                SoftAction(Icons.Filled.AutoAwesome, "问 AI", Modifier.weight(1f)) {
+                    nav.askAi("$date 的训练（${day.title}）我想调整：")
+                }
             }
-            OutlinedButton(onClick = { nav.askAi("${date} 的训练（${day.title}）我想调整：") }) { Text("问 AI") }
+            voiceError?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, color = c.danger, style = MaterialTheme.typography.bodySmall)
+            }
         }
-        voiceError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+
+        Text(
+            "点一组打卡，长按修改实际次数和重量",
+            style = MaterialTheme.typography.labelMedium,
+            color = c.muted,
+            modifier = Modifier.padding(start = 4.dp),
+        )
 
         exercises.forEachIndexed { ei, ex ->
             val info = container.exercises[ex.exerciseId]
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(12.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable(enabled = info != null) { info?.let { nav.openExercise(it.id) } },
-                    ) {
-                        ExerciseThumb(info, 52)
-                        Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                            Text(ex.name, style = MaterialTheme.typography.titleSmall)
+            val allDone = ex.sets.isNotEmpty() && ex.sets.all { it.done }
+            BCard(padding = PaddingValues(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ExerciseThumb(info, 60)
+                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                listOfNotNull(
-                                    info?.primary?.joinToString("、"),
-                                    ex.restSec?.let { "休息 ${formatDuration(it)}" },
-                                    lastWeights[plans.exerciseKey(ex)]?.let { "上次 ${it.fmtKg()}" },
-                                ).joinToString(" · "),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                ex.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
                             )
+                            if (allDone) {
+                                Spacer(Modifier.width(6.dp))
+                                Icon(Icons.Filled.CheckCircle, contentDescription = "已完成", tint = c.brand, modifier = Modifier.size(18.dp))
+                            }
                         }
-                        if (info != null) Text("要领 ›", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            listOfNotNull(
+                                info?.primary?.joinToString("、"),
+                                ex.restSec?.let { "休息 ${formatDuration(it)}" },
+                                lastWeights[plans.exerciseKey(ex)]?.let { "上次 ${it.fmtKg()}" },
+                            ).joinToString(" · "),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = c.muted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
-                    ex.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(top = 8.dp),
-                    ) {
-                        ex.sets.forEachIndexed { si, s ->
-                            SetChip(
-                                index = si,
-                                set = s,
-                                onClick = {
-                                    container.appScope.launch {
-                                        plans.updateSet(date, ei, si) {
-                                            if (it.done) it.copy(done = false, doneReps = null, doneWeightKg = null, doneDurationSec = null)
-                                            else it.markDone(lastWeights[plans.exerciseKey(ex)])
-                                        }
-                                    }
-                                },
-                                onLongClick = { editing = Triple(ei, si, s) },
-                            )
+                    if (info != null) {
+                        Surface(onClick = { nav.openExercise(info.id) }, shape = RoundedCornerShape(10.dp), color = c.surface2) {
+                            Row(Modifier.padding(start = 8.dp, top = 6.dp, bottom = 6.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("要领", style = MaterialTheme.typography.labelMedium, color = c.brand)
+                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = c.brand, modifier = Modifier.size(16.dp))
+                            }
                         }
+                    }
+                }
+                ex.note?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = c.muted, modifier = Modifier.padding(top = 8.dp))
+                }
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(top = 10.dp),
+                ) {
+                    ex.sets.forEachIndexed { si, s ->
+                        SetChip(
+                            index = si,
+                            set = s,
+                            onClick = {
+                                container.appScope.launch {
+                                    plans.updateSet(date, ei, si) {
+                                        if (it.done) it.copy(done = false, doneReps = null, doneWeightKg = null, doneDurationSec = null)
+                                        else it.markDone(lastWeights[plans.exerciseKey(ex)])
+                                    }
+                                }
+                            },
+                            onLongClick = { editing = Triple(ei, si, s) },
+                        )
                     }
                 }
             }
@@ -308,6 +399,7 @@ private fun DayDetail(
     pendingCheckin?.let { (args, text) ->
         AlertDialog(
             onDismissRequest = { pendingCheckin = null },
+            containerColor = c.surface,
             title = { Text("确认打卡") },
             text = { Text(text) },
             confirmButton = {
@@ -325,17 +417,30 @@ private fun DayDetail(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SetChip(index: Int, set: PlanSet, onClick: () -> Unit, onLongClick: () -> Unit) {
+    val c = Brand.colors
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = if (set.done) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(12.dp),
+        color = if (set.done) c.brand else c.surface2,
         modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
-        Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (set.done) Icon(Icons.Filled.Check, contentDescription = null, tint = c.onBrand, modifier = Modifier.size(12.dp))
+                Text(
+                    "第${index + 1}组",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (set.done) c.onBrand.copy(alpha = 0.85f) else c.muted,
+                )
+            }
             Text(
-                "第${index + 1}组" + if (set.done) " ✓" else "",
-                style = MaterialTheme.typography.labelSmall,
+                set.doneText() ?: set.targetText(),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = if (set.done) c.onBrand else c.text,
             )
-            Text(set.doneText() ?: set.targetText(), style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -348,10 +453,11 @@ private fun SetEditDialog(set: PlanSet, exercise: PlanExercise?, onDismiss: () -
     var duration by remember { mutableStateOf((set.doneDurationSec ?: set.durationSec)?.toDouble()) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = Brand.colors.surface,
         title = { Text(exercise?.name ?: "修改这一组") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("目标：${set.targetText()}", style = MaterialTheme.typography.bodySmall)
+                Text("目标：${set.targetText()}", style = MaterialTheme.typography.bodySmall, color = Brand.colors.muted)
                 if (timed) {
                     NumberField(duration, { duration = it }, "实际秒数", integer = true)
                 } else {
@@ -362,14 +468,7 @@ private fun SetEditDialog(set: PlanSet, exercise: PlanExercise?, onDismiss: () -
         },
         confirmButton = {
             TextButton(onClick = {
-                onSave(
-                    set.copy(
-                        done = true,
-                        doneReps = reps?.toInt(),
-                        doneWeightKg = weight,
-                        doneDurationSec = duration?.toInt(),
-                    )
-                )
+                onSave(set.copy(done = true, doneReps = reps?.toInt(), doneWeightKg = weight, doneDurationSec = duration?.toInt()))
             }) { Text("完成这一组") }
         },
         dismissButton = {
@@ -384,4 +483,3 @@ private fun SetEditDialog(set: PlanSet, exercise: PlanExercise?, onDismiss: () -
         },
     )
 }
-

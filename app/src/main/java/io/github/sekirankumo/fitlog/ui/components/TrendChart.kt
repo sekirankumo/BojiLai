@@ -44,9 +44,9 @@ fun TrendChart(points: List<ChartPoint>, modifier: Modifier = Modifier) {
 
     val sorted = points.sortedBy { it.time }
     val avg = movingAverage(sorted, windowMs = 7L * 24 * 3600 * 1000)
-    val raw = MaterialTheme.colorScheme.outline
-    val main = MaterialTheme.colorScheme.primary
-    val grid = MaterialTheme.colorScheme.outlineVariant
+    val raw = io.github.sekirankumo.fitlog.ui.theme.Brand.colors.muted.copy(alpha = 0.45f)
+    val main = io.github.sekirankumo.fitlog.ui.theme.Brand.colors.brand
+    val grid = io.github.sekirankumo.fitlog.ui.theme.Brand.colors.line
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 11.sp, color = labelColor)

@@ -1,4 +1,4 @@
-# 开发分支：只编译检查，不发布。顺便导出 Room 表结构，用来核对数据库迁移。
+# 开发分支：只编译检查，不发布。顺便导出 Room 表结构、生成界面截图。
 name: Check
 
 on:
@@ -29,3 +29,26 @@ jobs:
         with:
           name: room-schemas
           path: app/schemas/
+
+      # 截图需要中文字体，否则汉字会显示成方块
+      - name: Download CJK fonts
+        run: |
+          mkdir -p "$RUNNER_TEMP/fonts"
+          for w in Regular Medium Bold; do
+            curl -sSL -o "$RUNNER_TEMP/fonts/NotoSansSC-$w.otf" \
+              "https://github.com/notofonts/noto-cjk/raw/main/Sans/SubsetOTF/SC/NotoSansSC-$w.otf"
+          done
+          ls -la "$RUNNER_TEMP/fonts"
+
+      - name: Record screenshots
+        env:
+          CJK_FONT_DIR: ${{ runner.temp }}/fonts
+        run: gradle :app:recordRoborazziDebug --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: |
+            app/screenshots/
+            app/build/reports/tests/

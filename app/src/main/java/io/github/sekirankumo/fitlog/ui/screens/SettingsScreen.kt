@@ -3,32 +3,56 @@ package io.github.sekirankumo.fitlog.ui.screens
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.ListItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import io.github.sekirankumo.fitlog.AppContainer
+import io.github.sekirankumo.fitlog.background.HealthSync
+import io.github.sekirankumo.fitlog.ui.components.BCard
+import io.github.sekirankumo.fitlog.ui.components.RowItem
+import io.github.sekirankumo.fitlog.ui.theme.Brand
 import io.github.sekirankumo.fitlog.update.UpdateState
 import io.github.sekirankumo.fitlog.util.TimeUtil
 import kotlinx.coroutines.launch
@@ -42,6 +66,7 @@ class SettingsNav(
 
 @Composable
 fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
+    val c = Brand.colors
     val context = LocalContext.current
     val updater = container.updateManager
     val state by updater.state.collectAsState()
@@ -49,9 +74,10 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
     val health = container.healthSync
     var healthStatus by remember { mutableStateOf("检查中…") }
     var healthGranted by remember { mutableStateOf(false) }
+    var stepsInfo by remember { mutableStateOf<String?>(null) }
     var dataMessage by remember { mutableStateOf<String?>(null) }
     var confirmImport by remember { mutableStateOf<android.net.Uri?>(null) }
-    var refresh by remember { mutableStateOf(0) }
+    var refresh by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(refresh) {
         healthStatus = when (health.sdkStatus()) {
@@ -65,6 +91,13 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
             }
             HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> "需要更新 Health Connect"
             else -> "这台手机不支持 Health Connect"
+        }
+        stepsInfo = when (val s = health.todaySteps()) {
+            is HealthSync.Steps.Value -> "今日步数 ${s.count}，来源：${s.sources.joinToString("、").ifEmpty { "未知" }}"
+            HealthSync.Steps.NotGranted -> "步数：没有授权读取步数，点上面的「授权读取」"
+            HealthSync.Steps.NoData -> "步数：Health Connect 里今天没有步数数据。请在小米运动健康里确认已打开「步数」的同步，并在 Health Connect 的应用权限里允许它写入步数"
+            HealthSync.Steps.Unavailable -> null
+            is HealthSync.Steps.Failed -> "步数读取失败：${s.message}"
         }
     }
 
@@ -83,106 +116,119 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
         confirmImport = uri
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
-        SectionTitle("个人")
-        ListItem(
-            modifier = Modifier.clickable(onClick = nav.openProfile),
-            headlineContent = { Text("个人信息与目标") },
-            supportingContent = { Text("身高、年龄、目标、营养目标、训练提醒、AI 记住的信息") },
-        )
-        ListItem(
-            modifier = Modifier.clickable(onClick = nav.openAiSettings),
-            headlineContent = { Text("AI 服务配置") },
-            supportingContent = { Text("添加 API Key、选择模型、测试连接") },
-        )
-        HorizontalDivider()
+    val chevron: @Composable () -> Unit = {
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = c.muted)
+    }
 
-        SectionTitle("小米运动健康同步（Health Connect）")
-        ListItem(
-            modifier = Modifier.clickable {
-                if (!health.isAvailable()) return@clickable
-                if (!healthGranted) {
-                    permissionLauncher.launch(health.permissions)
-                } else {
-                    scope.launch {
-                        healthStatus = runCatching { health.sync() }.fold({ "同步完成，新增 $it 条记录" }, { "同步失败：${it.message}" })
-                    }
-                }
-            },
-            headlineContent = { Text(if (healthGranted) "立即同步" else "授权读取") },
-            supportingContent = { Text(healthStatus) },
-        )
-        Text(
-            "在「小米运动健康」里打开 Health Connect 数据同步（一般在 我的 → 设置 → 第三方数据共享 / Health Connect），体重秤和手环的数据就会自动同步到这里。打开 App 时会自动同步。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
-        if (health.isAvailable()) {
-            TextButton(
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Group("个人")
+        BCard(padding = PaddingValues(vertical = 4.dp)) {
+            RowItem("个人信息与目标", subtitle = "身高、目标、营养目标、训练提醒、AI 记住的信息", icon = Icons.Filled.Person, onClick = nav.openProfile, trailing = chevron)
+            Divider()
+            RowItem("AI 服务配置", subtitle = "API Key、模型选择、测试连接", icon = Icons.Filled.AutoAwesome, onClick = nav.openAiSettings, trailing = chevron)
+        }
+
+        Group("小米运动健康同步")
+        BCard(padding = PaddingValues(vertical = 4.dp)) {
+            RowItem(
+                if (healthGranted) "立即同步" else "授权读取",
+                subtitle = healthStatus,
+                icon = Icons.Filled.Favorite,
                 onClick = {
-                    runCatching {
-                        context.startActivity(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS))
+                    if (!health.isAvailable()) return@RowItem
+                    if (!healthGranted) {
+                        permissionLauncher.launch(health.permissions)
+                    } else {
+                        scope.launch {
+                            healthStatus = runCatching { health.sync() }.fold({ "同步完成，新增 $it 条记录" }, { "同步失败：${it.message}" })
+                            refresh++
+                        }
                     }
                 },
-                modifier = Modifier.padding(horizontal = 8.dp),
-            ) { Text("打开 Health Connect 设置") }
-        }
-        HorizontalDivider()
-
-        SectionTitle("数据")
-        ListItem(
-            modifier = Modifier.clickable(onClick = nav.openOperations),
-            headlineContent = { Text("操作记录") },
-            supportingContent = { Text("AI 和自动调整做过的修改，可以撤销") },
-        )
-        ListItem(
-            modifier = Modifier.clickable { exportLauncher.launch("薄肌来-${LocalDate.now()}.json") },
-            headlineContent = { Text("导出备份") },
-            supportingContent = { Text("全部记录导出为一个文件（不含 API Key）。每天也会自动备份到「下载/薄肌来」") },
-        )
-        ListItem(
-            modifier = Modifier.clickable { importLauncher.launch(arrayOf("application/json", "*/*")) },
-            headlineContent = { Text("从备份恢复") },
-            supportingContent = { Text("会用备份文件替换现在的全部数据") },
-        )
-        dataMessage?.let {
-            Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 16.dp))
-        }
-        HorizontalDivider()
-
-        SectionTitle("关于")
-        ListItem(
-            headlineContent = { Text("当前版本") },
-            supportingContent = { Text("${updater.currentVersionName}（${updater.currentVersionCode}）") },
-        )
-        ListItem(
-            headlineContent = { Text("检查更新") },
-            supportingContent = {
-                Text(
-                    when (val s = state) {
-                        UpdateState.Checking -> "正在检查…"
-                        UpdateState.UpToDate -> "已是最新版本"
-                        is UpdateState.Available -> "发现新版本 ${s.info.versionName}"
-                        is UpdateState.Downloading -> "正在下载 ${(s.progress * 100).toInt()}%"
-                        UpdateState.Installing -> "正在安装…"
-                        is UpdateState.Error -> s.message
-                        UpdateState.Idle -> "从 GitHub 获取最新版本"
-                    }
-                )
-            },
-            trailingContent = {
+                trailing = chevron,
+            )
+            stepsInfo?.let {
+                Divider()
+                Text(it, style = MaterialTheme.typography.bodySmall, color = c.muted, modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp))
+            }
+            if (health.isAvailable()) {
+                Divider()
                 TextButton(
-                    enabled = state !is UpdateState.Checking && state !is UpdateState.Downloading,
-                    onClick = { scope.launch { updater.check() } },
-                ) { Text("检查") }
-            },
+                    onClick = { runCatching { context.startActivity(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS)) } },
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                ) { Text("打开 Health Connect 设置") }
+            }
+        }
+        Text(
+            "在小米运动健康里打开 Health Connect 数据共享（一般在 我的 → 设置 → 第三方数据共享），体重秤和手环的数据就会同步过来。打开 App 时会自动同步。",
+            style = MaterialTheme.typography.bodySmall,
+            color = c.muted,
+            modifier = Modifier.padding(horizontal = 4.dp),
         )
+
+        Group("数据")
+        BCard(padding = PaddingValues(vertical = 4.dp)) {
+            RowItem("调整记录", subtitle = "AI 和自动调整做过的修改，可以撤销", icon = Icons.Filled.History, onClick = nav.openOperations, trailing = chevron)
+            Divider()
+            RowItem(
+                "导出备份",
+                subtitle = "全部记录导出为一个文件（不含 API Key）",
+                icon = Icons.Filled.Upload,
+                onClick = { exportLauncher.launch("薄肌来-${LocalDate.now()}.json") },
+                trailing = chevron,
+            )
+            Divider()
+            RowItem(
+                "从备份恢复",
+                subtitle = "用备份文件替换现在的全部数据",
+                icon = Icons.Filled.Restore,
+                onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) },
+                trailing = chevron,
+            )
+        }
+        Text(
+            dataMessage ?: "每天会自动备份到手机的「下载/薄肌来」，卸载 App 也不会丢。",
+            style = MaterialTheme.typography.bodySmall,
+            color = if (dataMessage != null) c.brand else c.muted,
+            modifier = Modifier.padding(horizontal = 4.dp),
+        )
+
+        Group("关于")
+        BCard(padding = PaddingValues(vertical = 4.dp)) {
+            RowItem(
+                "薄肌来",
+                subtitle = "版本 ${updater.currentVersionName}（${updater.currentVersionCode}）",
+                icon = Icons.Filled.Info,
+            )
+            Divider()
+            RowItem(
+                "检查更新",
+                subtitle = when (val s = state) {
+                    UpdateState.Checking -> "正在检查…"
+                    UpdateState.UpToDate -> "已是最新版本"
+                    is UpdateState.Available -> "发现新版本 ${s.info.versionName}"
+                    is UpdateState.Downloading -> "正在下载 ${(s.progress * 100).toInt()}%"
+                    UpdateState.Installing -> "正在安装…"
+                    is UpdateState.Error -> s.message
+                    UpdateState.Idle -> "从 GitHub 获取最新版本"
+                },
+                icon = Icons.Filled.SystemUpdate,
+                onClick = {
+                    if (state !is UpdateState.Checking && state !is UpdateState.Downloading) scope.launch { updater.check() }
+                },
+                trailing = chevron,
+            )
+        }
+        Spacer(Modifier.height(24.dp))
     }
 
     confirmImport?.let { uri ->
         AlertDialog(
             onDismissRequest = { confirmImport = null },
+            containerColor = c.surface,
             title = { Text("从备份恢复？") },
             text = { Text("现在的全部数据会被备份文件里的内容替换。建议先导出一份当前数据。") },
             confirmButton = {
@@ -202,11 +248,15 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
 }
 
 @Composable
-private fun SectionTitle(text: String) {
+private fun Group(text: String) {
     Text(
         text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, top = 20.dp, bottom = 4.dp),
+        style = MaterialTheme.typography.labelLarge,
+        color = Brand.colors.muted,
+        modifier = Modifier.padding(start = 4.dp, top = 10.dp),
     )
 }
+
+@Composable
+private fun Divider() = HorizontalDivider(Modifier.padding(start = 64.dp, end = 16.dp), color = Brand.colors.line)
+

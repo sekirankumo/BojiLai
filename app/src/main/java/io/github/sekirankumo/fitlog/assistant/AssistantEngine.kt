@@ -76,6 +76,11 @@ class AssistantEngine(
         job = scope.launch { runLoop() }
     }
 
+    /** 截图测试用：直接显示一段对话 */
+    internal fun showPreview(list: List<ChatItem>) {
+        _items.value = list
+    }
+
     /** 用户对确认卡片的选择 */
     fun decide(approve: Boolean) {
         pendingDecision?.complete(approve)

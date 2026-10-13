@@ -98,6 +98,9 @@ class AppContainer(app: Application) {
         um.beforeInstall = { backup.autoBackup(force = true) }
     }
 
+    /** 待「记一餐」页面确认的食物（打开页面时取走） */
+    val draftInbox = kotlinx.coroutines.flow.MutableStateFlow<List<io.github.sekirankumo.fitlog.data.diet.FoodDraft>>(emptyList())
+
     /** AI 助手请求跳转页面时发出的路由 */
     val navEvents = MutableSharedFlow<String>(extraBufferCapacity = 4)
 
