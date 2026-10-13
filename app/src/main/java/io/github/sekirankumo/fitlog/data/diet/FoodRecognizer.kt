@@ -162,6 +162,7 @@ class FoodRecognizer(
             listOf(Msg.system(SYSTEM), message),
             jsonMode = true,
             temperature = 0.2,
+            stream = true,
         )
         val root = extractJsonObject(result.content ?: throw AiException("AI 没有返回内容"))
         val items = ((root["items"] ?: root["foods"]) as? JsonArray).orEmpty().mapNotNull { el ->

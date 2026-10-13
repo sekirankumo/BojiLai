@@ -39,7 +39,17 @@ class PlanAi(
     private val profile: ProfileRepository,
     private val bodyDao: BodyRecordDao,
 ) {
-    private suspend fun ask(system: String, user: String): JsonObject {
+    /** 正在进行的 AI 请求已收到的字数，界面用来显示进度；空闲时为 null */
+    val progress = kotlinx.coroutines.flow.MutableStateFlow<Int?>(null)
+
+    private suspend fun ask(system: String, user: String): JsonObject = try {
+        progress.value = 0
+        askOnce(system, user)
+    } finally {
+        progress.value = null
+    }
+
+    private suspend fun askOnce(system: String, user: String): JsonObject {
         val config = settings.current()
         val ref = config.assistantModel?.takeIf { it.model.isNotBlank() }
             ?: throw AiException("还没有配置 AI 助手模型")
@@ -50,6 +60,8 @@ class PlanAi(
             listOf(Msg.system(system), Msg.user(user)),
             jsonMode = true,
             temperature = 0.3,
+            stream = true,
+            onProgress = { progress.value = it },
         )
         return extractJsonObject(result.content ?: throw AiException("AI 没有返回内容"))
     }

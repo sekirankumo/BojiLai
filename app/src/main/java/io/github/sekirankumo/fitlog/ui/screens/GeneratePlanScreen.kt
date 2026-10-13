@@ -28,7 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import io.github.sekirankumo.fitlog.AppContainer
+import io.github.sekirankumo.fitlog.background.PlanGenerateWorker
 import io.github.sekirankumo.fitlog.ui.components.pickDate
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
@@ -51,8 +56,34 @@ fun GeneratePlanScreen(container: AppContainer, onDone: () -> Unit) {
     var notes by rememberSaveable { mutableStateOf("") }
     var startEpoch by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
     var loaded by rememberSaveable { mutableStateOf(false) }
-    var busy by rememberSaveable { mutableStateOf(false) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
+
+    // 生成在后台任务里进行：离开页面或切出 App 也会继续，完成后发通知
+    val wm = remember { WorkManager.getInstance(context) }
+    var workId by rememberSaveable { mutableStateOf<String?>(null) }
+    val workFlow = remember { wm.getWorkInfosForUniqueWorkFlow(PlanGenerateWorker.UNIQUE) }
+    val infos by workFlow.collectAsState(initial = emptyList())
+    val current = infos.firstOrNull()
+    val busy = current?.state == WorkInfo.State.RUNNING || current?.state == WorkInfo.State.ENQUEUED
+    val progressChars by container.planAi.progress.collectAsState()
+
+    LaunchedEffect(current?.id, current?.state) {
+        val info = current ?: return@LaunchedEffect
+        // 只处理这个页面发起的那次生成
+        if (info.id.toString() != workId) return@LaunchedEffect
+        when (info.state) {
+            WorkInfo.State.SUCCEEDED -> {
+                workId = null
+                onDone()
+            }
+            WorkInfo.State.FAILED -> {
+                workId = null
+                error = "生成失败：${info.outputData.getString(PlanGenerateWorker.KEY_ERROR) ?: "未知错误"}"
+            }
+            WorkInfo.State.CANCELLED -> workId = null
+            else -> Unit
+        }
+    }
 
     // 用个人信息里的偏好预填
     LaunchedEffect(Unit) {
@@ -109,39 +140,40 @@ fun GeneratePlanScreen(container: AppContainer, onDone: () -> Unit) {
             enabled = !busy,
             modifier = Modifier.fillMaxWidth(),
             onClick = {
-                busy = true
                 error = null
+                val args = buildJsonObject {
+                    put("goal", goal)
+                    put("days_per_week", daysPerWeek)
+                    put("weeks", weeks)
+                    put("session_minutes", minutes)
+                    put("equipment", equipment)
+                    put("notes", notes)
+                    put("start_date", LocalDate.ofEpochDay(startEpoch).toString())
+                }
+                // 记住这次的偏好
                 scope.launch {
-                    val args = buildJsonObject {
-                        put("goal", goal)
-                        put("days_per_week", daysPerWeek)
-                        put("weeks", weeks)
-                        put("session_minutes", minutes)
-                        put("equipment", equipment)
-                        put("notes", notes)
-                        put("start_date", LocalDate.ofEpochDay(startEpoch).toString())
-                    }
-                    try {
-                        container.operations.runWrite(container.tools["generate_training_plan"]!!, args)
-                        // 记住这次的偏好
-                        container.profile.update {
-                            it.copy(trainingDaysPerWeek = daysPerWeek, sessionMinutes = minutes, equipment = equipment)
-                        }
-                        onDone()
-                    } catch (e: Exception) {
-                        error = "生成失败：${e.message}"
-                    } finally {
-                        busy = false
+                    container.profile.update {
+                        it.copy(trainingDaysPerWeek = daysPerWeek, sessionMinutes = minutes, equipment = equipment)
                     }
                 }
+                workId = PlanGenerateWorker.enqueue(context.applicationContext, args.toString()).toString()
             },
         ) {
             if (busy) {
-                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                Text("  AI 正在排计划，大约需要半分钟…")
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                Text(
+                    "  AI 正在排计划…" + (progressChars?.takeIf { it > 0 }?.let { "已生成 $it 字" } ?: "")
+                )
             } else {
                 Text("生成计划")
             }
+        }
+        if (busy) {
+            Text(
+                "一般需要半分钟到两分钟。可以先去做别的，切出 App 也会继续生成，好了会发通知。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

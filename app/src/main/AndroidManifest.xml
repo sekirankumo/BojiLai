@@ -6,6 +6,8 @@
     <!-- Android 12+：自己更新自己时可以免确认（首次之后生效） -->
     <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Android 12 以下，加急的后台任务（生成训练计划）以前台服务运行 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <!-- Health Connect：读取小米运动健康等同步过来的数据 -->
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
