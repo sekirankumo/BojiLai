@@ -32,6 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         fun create(context: Context): AppDatabase =
+            // 文件名沿用改名前的 fitlog.db，不能改，否则旧数据读不到
             Room.databaseBuilder(context, AppDatabase::class.java, "fitlog.db")
                 .addMigrations(*MIGRATIONS)
                 .build()

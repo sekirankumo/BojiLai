@@ -137,9 +137,9 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
             supportingContent = { Text("AI 和自动调整做过的修改，可以撤销") },
         )
         ListItem(
-            modifier = Modifier.clickable { exportLauncher.launch("FitLog-${LocalDate.now()}.json") },
+            modifier = Modifier.clickable { exportLauncher.launch("薄肌来-${LocalDate.now()}.json") },
             headlineContent = { Text("导出备份") },
-            supportingContent = { Text("全部记录导出为一个文件（不含 API Key）。每天也会自动备份到「下载/FitLog」") },
+            supportingContent = { Text("全部记录导出为一个文件（不含 API Key）。每天也会自动备份到「下载/薄肌来」") },
         )
         ListItem(
             modifier = Modifier.clickable { importLauncher.launch(arrayOf("application/json", "*/*")) },

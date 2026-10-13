@@ -20,7 +20,7 @@
     </queries>
 
     <application
-        android:name=".FitLogApp"
+        android:name=".BojiLaiApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -28,7 +28,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
-        android:theme="@style/Theme.FitLog">
+        android:theme="@style/Theme.BojiLai">
 
         <activity
             android:name=".MainActivity"

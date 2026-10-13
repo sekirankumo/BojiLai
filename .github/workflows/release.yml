@@ -52,9 +52,9 @@ jobs:
         run: |
           NAME="0.1.${VERSION_CODE}"
           TAG="v${NAME}"
-          APK="FitLog-${NAME}.apk"
+          APK="BojiLai-${NAME}.apk"
           cp app/build/outputs/apk/release/app-release.apk "$APK"
           NOTES="$(git log -1 --pretty=%B)"
           # App 从标签最后一段读取 versionCode，标签格式不要改
           gh release create "$TAG" "$APK" \
-            --title "FitLog ${NAME}" --notes "$NOTES" --latest
+            --title "薄肌来 ${NAME}" --notes "$NOTES" --latest

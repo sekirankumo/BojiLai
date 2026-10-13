@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "FitLog"
+rootProject.name = "BojiLai"
 include(":app")

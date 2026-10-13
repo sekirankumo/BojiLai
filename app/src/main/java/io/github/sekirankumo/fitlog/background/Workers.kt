@@ -6,7 +6,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import io.github.sekirankumo.fitlog.FitLogApp
+import io.github.sekirankumo.fitlog.BojiLaiApp
 import io.github.sekirankumo.fitlog.data.db.DayStatus
 import java.time.Duration
 import java.time.LocalDate
@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit
 /** 每隔几小时：检查漏打卡并自动调整计划、每日自动备份 */
 class DailyWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        val container = (applicationContext as FitLogApp).container
+        val container = (applicationContext as BojiLaiApp).container
         runCatching { container.missedWorkouts.check() }
         runCatching { container.backup.autoBackup() }
         return Result.success()
@@ -26,7 +26,7 @@ class DailyWorker(context: Context, params: WorkerParameters) : CoroutineWorker(
 /** 训练日提醒 */
 class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        val container = (applicationContext as FitLogApp).container
+        val container = (applicationContext as BojiLaiApp).container
         val day = container.plans.get(LocalDate.now()) ?: return Result.success()
         if (day.status != DayStatus.PLANNED) return Result.success()
         val count = container.plans.exercisesOf(day).size

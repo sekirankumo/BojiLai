@@ -97,7 +97,7 @@ private fun NavController.openTab(route: String) = navigate(route) {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun FitLogRoot(container: AppContainer, openRoute: String? = null) {
+fun BojiLaiRoot(container: AppContainer, openRoute: String? = null) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route

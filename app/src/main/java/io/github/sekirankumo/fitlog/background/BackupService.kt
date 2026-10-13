@@ -34,7 +34,7 @@ data class BackupFile(
 
 /**
  * 备份：导出 / 导入全部数据（不含 API Key）。
- * 自动备份写到「下载/FitLog」文件夹，卸载 App 也不会丢，保留最近 7 份。
+ * 自动备份写到「下载/薄肌来」文件夹，卸载 App 也不会丢，保留最近 7 份。
  */
 class BackupService(private val context: Context, private val db: AppDatabase) {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
@@ -84,7 +84,7 @@ class BackupService(private val context: Context, private val db: AppDatabase) {
     suspend fun autoBackup(force: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         val today = LocalDate.now().toString()
         if (!force && db.kvDao().get(KEY_LAST) == today) return@withContext false
-        val name = "FitLog-backup-${today.replace("-", "")}.json"
+        val name = "薄肌来-备份-${today.replace("-", "")}.json"
         val resolver = context.contentResolver
         val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
         val existing = resolver.query(
@@ -112,7 +112,7 @@ class BackupService(private val context: Context, private val db: AppDatabase) {
         resolver.query(
             collection,
             arrayOf(MediaStore.MediaColumns._ID),
-            "${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${MediaStore.MediaColumns.DISPLAY_NAME} LIKE 'FitLog-backup-%'",
+            "${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${MediaStore.MediaColumns.DISPLAY_NAME} LIKE '薄肌来-备份-%'",
             arrayOf(RELATIVE_PATH),
             "${MediaStore.MediaColumns.DISPLAY_NAME} DESC",
         )?.use { c -> while (c.moveToNext()) ids += c.getLong(0) }
@@ -124,6 +124,6 @@ class BackupService(private val context: Context, private val db: AppDatabase) {
     private companion object {
         const val KEY_LAST = "last_auto_backup"
         const val KEEP = 7
-        val RELATIVE_PATH = Environment.DIRECTORY_DOWNLOADS + "/FitLog/"
+        val RELATIVE_PATH = Environment.DIRECTORY_DOWNLOADS + "/薄肌来/"
     }
 }

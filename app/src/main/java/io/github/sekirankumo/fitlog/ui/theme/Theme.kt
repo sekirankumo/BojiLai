@@ -24,7 +24,7 @@ private val DarkColors = darkColorScheme(
 )
 
 @Composable
-fun FitLogTheme(
+fun BojiLaiTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {

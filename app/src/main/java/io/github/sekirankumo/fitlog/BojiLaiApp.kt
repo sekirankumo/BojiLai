@@ -52,7 +52,7 @@ import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
-class FitLogApp : Application() {
+class BojiLaiApp : Application() {
     lateinit var container: AppContainer
         private set
 
@@ -62,7 +62,7 @@ class FitLogApp : Application() {
         Notifications.createChannels(this)
         WorkScheduler.scheduleDaily(this)
         container.appScope.launch {
-            runCatching { WorkScheduler.scheduleReminder(this@FitLogApp, container.profile.current().reminderMinuteOfDay) }
+            runCatching { WorkScheduler.scheduleReminder(this@BojiLaiApp, container.profile.current().reminderMinuteOfDay) }
             runCatching { container.missedWorkouts.check() }
             runCatching { container.backup.autoBackup() }
         }

@@ -19,8 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import io.github.sekirankumo.fitlog.background.Notifications
-import io.github.sekirankumo.fitlog.ui.FitLogRoot
-import io.github.sekirankumo.fitlog.ui.theme.FitLogTheme
+import io.github.sekirankumo.fitlog.ui.BojiLaiRoot
+import io.github.sekirankumo.fitlog.ui.theme.BojiLaiTheme
 
 class MainActivity : ComponentActivity() {
     private val notificationPermission =
@@ -29,11 +29,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val container = (application as FitLogApp).container
+        val container = (application as BojiLaiApp).container
         val openRoute = intent?.getStringExtra(Notifications.EXTRA_OPEN)
         setContent {
-            FitLogTheme {
-                FitLogRoot(container, openRoute)
+            BojiLaiTheme {
+                BojiLaiRoot(container, openRoute)
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -50,12 +50,12 @@ class HealthRationaleActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            FitLogTheme {
+            BojiLaiTheme {
                 Surface(Modifier.fillMaxSize()) {
                     Column(Modifier.safeDrawingPadding().padding(24.dp)) {
-                        Text("FitLog 如何使用健康数据", style = MaterialTheme.typography.headlineSmall)
+                        Text("薄肌来如何使用健康数据", style = MaterialTheme.typography.headlineSmall)
                         Text(
-                            "FitLog 只读取体重、体脂率和步数，用来显示趋势、计算营养目标和调整训练计划。" +
+                            "薄肌来只读取体重、体脂率和步数，用来显示趋势、计算营养目标和调整训练计划。" +
                                 "数据只保存在这台手机上，不会上传到任何服务器。" +
                                 "只有当你主动使用 AI 助手时，相关数据才会作为对话内容发送给你自己配置的 AI 服务。",
                             modifier = Modifier.padding(top = 16.dp),

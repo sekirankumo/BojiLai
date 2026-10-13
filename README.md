@@ -1,6 +1,6 @@
-# FitLog
+# 薄肌来（BojiLai）
 
-个人用安卓 App：记录饮食、训练和身体数据，内置可以操控全部功能的 AI 助手。
+个人用安卓 App，帮你练出薄肌：记录饮食、训练和身体数据，内置可以操控全部功能的 AI 助手。
 
 ## 功能
 
@@ -11,7 +11,7 @@
 - **漏打卡自动调整**：每天检查，漏掉的训练由 AI 重新安排进后续计划并直接生效，在「调整记录」或对话里可以撤销。
 - **身体数据**：体重、体脂记录和趋势图（7 天移动平均），可从 Health Connect（小米运动健康）同步。
 - **今日**：摄入、训练、体重、步数一屏看完。
-- **备份**：每天自动备份到「下载/FitLog」，也可以手动导出 / 恢复。
+- **备份**：每天自动备份到「下载/薄肌来」，也可以手动导出 / 恢复。
 
 ## 技术
 
@@ -21,7 +21,7 @@
 
 ## 安装
 
-到 [Releases](../../releases/latest) 下载最新的 `FitLog-x.y.z.apk` 安装。之后的版本在 App 里提示更新即可。
+到 [Releases](../../releases/latest) 下载最新的 `BojiLai-x.y.z.apk` 安装。之后的版本在 App 里提示更新即可。
 
 ## 本地开发
 
@@ -36,3 +36,7 @@ python tools/build_exercises.py <free-exercise-db 目录> app/src/main/assets
 ## 数据库迁移
 
 改表结构时把 `AppDatabase` 的 version + 1，并在 `MIGRATIONS` 里写迁移 SQL。CI 的编译检查会上传 `room-schemas`，可以用来核对建表语句。
+
+## 关于名字
+
+App 原名 FitLog，后改名「薄肌来」，仓库名用拼音 BojiLai。为了已安装的版本能继续覆盖更新、数据不丢，包名 `io.github.sekirankumo.fitlog` 和数据库文件名 `fitlog.db` 保持不变。

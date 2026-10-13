@@ -214,7 +214,7 @@ class AssistantEngine(
         )
         val todayPlan = db.planDao().get(today.toEpochDay())
         return """
-            你是 FitLog 应用内置的 AI 助手兼私人教练和营养师，帮助用户记录饮食、安排训练、跟踪身体数据。用简洁的中文回答。
+            你是「薄肌来」App 内置的 AI 助手兼私人教练和营养师，帮助用户记录饮食、安排训练、跟踪身体数据。用简洁的中文回答。
             当前时间：${TimeUtil.nowForPrompt()}
 
             你可以调用工具读取和修改 App 里的所有数据，规则：

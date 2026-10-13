@@ -22,6 +22,8 @@ fun signingValue(envKey: String, propKey: String): String? =
 val releaseStoreFile = signingValue("KEYSTORE_FILE", "storeFile")
 
 android {
+    // App 已改名「薄肌来」，但包名和 applicationId 保持 fitlog 不变：
+    // 改了的话已安装的版本无法覆盖更新，只能卸载重装（会丢数据）
     namespace = "io.github.sekirankumo.fitlog"
     compileSdk = 35
 
@@ -36,7 +38,7 @@ android {
         buildConfigField(
             "String",
             "UPDATE_URL",
-            "\"https://api.github.com/repos/sekirankumo/FitLog/releases/latest\""
+            "\"https://api.github.com/repos/sekirankumo/BojiLai/releases/latest\""
         )
     }
 
