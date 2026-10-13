@@ -1,6 +1,6 @@
 # 薄肌来（BojiLai）
 
-个人用安卓 App，帮你练出薄肌：记录饮食、训练和身体数据，内置可以操控全部功能的 AI 助手。
+帮你练出薄肌：记录饮食、训练和身体数据，内置可以操控全部功能的 AI 助手。
 
 **介绍页：<https://sekirankumo.github.io/BojiLai/>**
 
@@ -39,6 +39,3 @@ python tools/build_exercises.py <free-exercise-db 目录> app/src/main/assets
 
 改表结构时把 `AppDatabase` 的 version + 1，并在 `MIGRATIONS` 里写迁移 SQL。CI 的编译检查会上传 `room-schemas`，可以用来核对建表语句。
 
-## 关于名字
-
-App 原名 FitLog，后改名「薄肌来」，仓库名用拼音 BojiLai。为了已安装的版本能继续覆盖更新、数据不丢，包名 `io.github.sekirankumo.fitlog` 和数据库文件名 `fitlog.db` 保持不变。
