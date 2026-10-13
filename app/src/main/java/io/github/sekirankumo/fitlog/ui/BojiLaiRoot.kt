@@ -74,6 +74,7 @@ import io.github.sekirankumo.fitlog.ui.screens.TodayScreen
 import io.github.sekirankumo.fitlog.ui.screens.TrainingNav
 import io.github.sekirankumo.fitlog.ui.screens.TrainingScreen
 import io.github.sekirankumo.fitlog.ui.theme.Brand
+import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 
 private enum class Tab(val route: String, val label: String, val icon: ImageVector, val selectedIcon: ImageVector) {
@@ -130,7 +131,10 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
     val currentTab = Tab.entries.firstOrNull { it.route == route }
 
     LaunchedEffect(Unit) {
-        openRoute?.let { r -> if (Tab.entries.any { it.route == r }) nav.openTab(r) else nav.navigate(r) }
+        if (openRoute == null) return@LaunchedEffect
+        // 等导航图建好（第一个页面出现）后再跳转
+        nav.currentBackStackEntryFlow.first()
+        if (Tab.entries.any { it.route == openRoute }) nav.openTab(openRoute) else nav.navigate(openRoute)
     }
     if (sideEffects) {
         // 启动时检查更新；在前台时同步 Health Connect

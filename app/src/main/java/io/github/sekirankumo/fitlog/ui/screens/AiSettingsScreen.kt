@@ -197,7 +197,7 @@ private fun ModelSlot(
         onChange(ModelRef(p.id, model.trim()).takeIf { it.model.isNotEmpty() })
     }
 
-    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
+    io.github.sekirankumo.fitlog.ui.components.BCard(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), padding = androidx.compose.foundation.layout.PaddingValues(4.dp)) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

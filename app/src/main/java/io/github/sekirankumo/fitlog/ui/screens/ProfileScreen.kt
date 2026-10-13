@@ -57,8 +57,8 @@ fun ProfileScreen(container: AppContainer, onDone: () -> Unit) {
     ) {
         Text("基本信息", style = MaterialTheme.typography.titleSmall)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            FilterChip(profile.sex == "male", { set { it.copy(sex = "male") } }, label = { Text("男") })
-            FilterChip(profile.sex == "female", { set { it.copy(sex = "female") } }, label = { Text("女") })
+            FilterChip(profile.sex == "male", { set { it.copy(sex = "male") } }, label = { Text("男") }, colors = chipColors())
+            FilterChip(profile.sex == "female", { set { it.copy(sex = "female") } }, label = { Text("女") }, colors = chipColors())
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             NumberField(profile.birthYear?.toDouble(), { v -> set { it.copy(birthYear = v?.toInt()) } }, "出生年份", Modifier.weight(1f), integer = true)
@@ -73,17 +73,17 @@ fun ProfileScreen(container: AppContainer, onDone: () -> Unit) {
         Text("日常活动量（不含训练）", style = MaterialTheme.typography.titleSmall)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             UserProfile.ACTIVITY_LABELS.forEachIndexed { i, label ->
-                FilterChip(profile.activityLevel == i, { set { it.copy(activityLevel = i) } }, label = { Text(label) })
+                FilterChip(profile.activityLevel == i, { set { it.copy(activityLevel = i) } }, label = { Text(label) }, colors = chipColors())
             }
         }
         Text("目标", style = MaterialTheme.typography.titleSmall)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             UserProfile.GOALS.forEach { (key, label) ->
-                FilterChip(profile.goal == key, { set { it.copy(goal = key) } }, label = { Text(label) })
+                FilterChip(profile.goal == key, { set { it.copy(goal = key) } }, label = { Text(label) }, colors = chipColors())
             }
         }
 
-        Card(Modifier.fillMaxWidth()) {
+        io.github.sekirankumo.fitlog.ui.components.BCard(Modifier.fillMaxWidth(), padding = androidx.compose.foundation.layout.PaddingValues(4.dp)) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("每日营养目标", style = MaterialTheme.typography.titleSmall)
                 Text(
