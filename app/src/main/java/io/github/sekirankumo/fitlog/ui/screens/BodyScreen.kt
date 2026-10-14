@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import io.github.sekirankumo.fitlog.ui.components.BottomBarSpace
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import io.github.sekirankumo.fitlog.ui.components.Motion
@@ -111,7 +112,7 @@ fun BodyScreen(container: AppContainer) {
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp + BottomBarSpace),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item { Summary(container, records, inRange, range) }
@@ -204,7 +205,7 @@ fun BodyScreen(container: AppContainer) {
             }
         }
 
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp))
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp + BottomBarSpace))
     }
 
     if (adding || editing != null) {

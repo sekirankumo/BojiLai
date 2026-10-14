@@ -3,7 +3,9 @@ package io.github.sekirankumo.fitlog
 import android.app.Application
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -174,6 +176,24 @@ class ScreenshotTest {
         for (i in 1..4) {
             compose.mainClock.advanceTimeBy(40)
             compose.onRoot().captureRoboImage("screenshots/bar_fade_$i.png")
+        }
+    }
+
+    /** 从 AI 助手返回今日页的过程中连续截几帧：底栏不能有空档、跳动，「问 AI」按钮要完整 */
+    @Test fun returnFromAssistant() {
+        compose.setContent {
+            BojiLaiTheme(fontFamily = font) {
+                BojiLaiRoot(container, "assistant", sideEffects = false)
+            }
+        }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(1000)
+        compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithContentDescription("返回").performClick()
+        for (i in 1..5) {
+            compose.mainClock.advanceTimeBy(50)
+            compose.onRoot().captureRoboImage("screenshots/return_$i.png")
         }
     }
 

@@ -47,6 +47,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.sekirankumo.fitlog.ui.theme.Brand
 
+/** 底栏浮在主页签页面上方，页面列表底部要多留出这么高（不含系统导航条） */
+val BottomBarSpace = 64.dp
+
 /** 为 true 时关闭自动播放类动画（截图测试用） */
 val LocalReduceMotion = androidx.compose.runtime.staticCompositionLocalOf { false }
 

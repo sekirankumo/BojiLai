@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import io.github.sekirankumo.fitlog.ui.components.BottomBarSpace
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -113,7 +114,7 @@ fun TrainingScreen(container: AppContainer, nav: TrainingNav) {
     val lastWeights by produceState(emptyMap<String, Double>(), days) { value = plans.lastWeights() }
 
     LazyColumn(
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp + BottomBarSpace),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (!hasPlan) {

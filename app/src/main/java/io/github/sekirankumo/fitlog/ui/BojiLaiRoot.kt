@@ -1,8 +1,11 @@
 package io.github.sekirankumo.fitlog.ui
 
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.snap
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -66,12 +69,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import io.github.sekirankumo.fitlog.ui.components.LocalReduceMotion
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -149,9 +149,6 @@ private val TITLES = mapOf(
 
 private val TAB_ROUTES = Tab.entries.map { it.route }.toSet()
 
-/** 从二级页面返回主页签时，底栏等多久再出现（和页面退出动画差不多长） */
-private const val BAR_DELAY_MS = 250L
-private const val BAR_FADE_MS = 200
 
 /** 两个底部页签之间切换：平级页面，只做快速淡入（带一点点放大），不左右滑 */
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.betweenTabs() =
@@ -184,19 +181,7 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
     val lastTab = remember { arrayOf(Tab.Today) }
     SideEffect { if (currentTab != null) lastTab[0] = currentTab }
 
-    // 底栏：进二级页面时立刻收起；回到主页签时等页面切换动画走完再浮上来，
-    // 免得底栏一出现就把正在退出的页面（比如 AI 助手的输入框）往上挤
     val reduceMotion = LocalReduceMotion.current
-    var barShown by remember { mutableStateOf(false) }
-    val barEverShown = remember { booleanArrayOf(false) }
-    LaunchedEffect(currentTab != null) {
-        if (currentTab != null) {
-            if (barEverShown[0] && !reduceMotion) delay(BAR_DELAY_MS)
-            barShown = true
-            barEverShown[0] = true
-        } else {
-            barShown = false
-        }
     }
 
     LaunchedEffect(Unit) {
@@ -229,177 +214,204 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
     val colors = Brand.colors
     // 语音输入用的内置离线识别
     CompositionLocalProvider(LocalSpeechEngine provides container.speech) {
-        Scaffold(
-            containerColor = colors.bg,
-            topBar = {
-                // 整条顶栏作为一个整体原地淡入淡出：返回箭头、标题、右侧按钮一起换，
-                // 不会出现标题被箭头挤走、从左往右擦出来的情况
-                Crossfade(targetState = route, animationSpec = tween(Motion.MEDIUM), label = "topBar") { r ->
-                    val tab = Tab.entries.firstOrNull { it.route == r }
-                    TopAppBar(
-                        title = {
-                            if (tab == Tab.Today) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    LogoMark()
-                                    Text("  薄肌来", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+        Box(Modifier.fillMaxSize()) {
+            Scaffold(
+                containerColor = colors.bg,
+                topBar = {
+                    // 整条顶栏作为一个整体原地淡入淡出：返回箭头、标题、右侧按钮一起换，
+                    // 不会出现标题被箭头挤走、从左往右擦出来的情况
+                    Crossfade(targetState = route, animationSpec = tween(Motion.MEDIUM), label = "topBar") { r ->
+                        val tab = Tab.entries.firstOrNull { it.route == r }
+                        TopAppBar(
+                            title = {
+                                if (tab == Tab.Today) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        LogoMark()
+                                        Text("  薄肌来", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                                    }
+                                } else {
+                                    Text(
+                                        TITLES[r] ?: tab?.label ?: "",
+                                        style = if (tab != null) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
+                                    )
                                 }
-                            } else {
-                                Text(
-                                    TITLES[r] ?: tab?.label ?: "",
-                                    style = if (tab != null) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
-                                )
-                            }
-                        },
-                        navigationIcon = {
-                            if (r != null && tab == null) {
-                                IconButton(onClick = { nav.popBackStack() }) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                            },
+                            navigationIcon = {
+                                if (r != null && tab == null) {
+                                    IconButton(onClick = { nav.popBackStack() }) {
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                                    }
                                 }
-                            }
-                        },
-                        actions = {
-                            if (tab != null) {
-                                IconButton(onClick = { nav.navigate(Routes.SETTINGS) }) {
-                                    Icon(Icons.Filled.Settings, contentDescription = "设置", tint = colors.muted)
+                            },
+                            actions = {
+                                if (tab != null) {
+                                    IconButton(onClick = { nav.navigate(Routes.SETTINGS) }) {
+                                        Icon(Icons.Filled.Settings, contentDescription = "设置", tint = colors.muted)
+                                    }
                                 }
-                            }
-                            if (r == Routes.ASSISTANT) {
-                                IconButton(onClick = { container.assistant.clear() }) {
-                                    Icon(Icons.Filled.DeleteSweep, contentDescription = "清空对话", tint = colors.muted)
+                                if (r == Routes.ASSISTANT) {
+                                    IconButton(onClick = { container.assistant.clear() }) {
+                                        Icon(Icons.Filled.DeleteSweep, contentDescription = "清空对话", tint = colors.muted)
+                                    }
                                 }
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.bg, scrolledContainerColor = colors.bg),
-                    )
-                }
-            },
-            bottomBar = {
-                if (barShown) {
-                    val appear = remember { Animatable(if (reduceMotion) 1f else 0f) }
-                    LaunchedEffect(Unit) { appear.animateTo(1f, tween(BAR_FADE_MS, easing = Motion.EmphasizedDecelerate)) }
-                    BottomBar(
-                        current = currentTab ?: lastTab[0],
-                        onTab = { nav.openTab(it.route) },
-                        onAi = { nav.navigate(Routes.ASSISTANT) },
-                        modifier = Modifier.graphicsLayer {
-                            alpha = appear.value
-                            translationY = (1f - appear.value) * 24.dp.toPx()
-                            // 半透明时默认会先画到和底栏一样大的离屏画布上，凸出底栏的「问 AI」按钮会被裁掉；
-                            // 改成逐个绘制时乘透明度，不经过离屏画布
-                            compositingStrategy = CompositingStrategy.ModulateAlpha
-                        },
-                    )
-                }
-            },
-        ) { padding ->
-            // 营养目标缺资料时的「去填写」：只差体重记录就去身体页，否则去个人信息
-            val completeProfile: (List<String>) -> Unit = { missing ->
-                if (missing == listOf("体重记录")) nav.openTab(Tab.Body.route) else nav.navigate(Routes.PROFILE)
-            }
-            NavHost(
-                navController = nav,
-                startDestination = Tab.Today.route,
-                modifier = Modifier.padding(padding).consumeWindowInsets(padding),
-                enterTransition = {
-                    when {
-                        betweenTabs() -> tabEnter()
-                        targetState.destination.route == Routes.ASSISTANT ->
-                            slideInVertically(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate)) { it / 6 } + fadeIn(tween(Motion.MEDIUM))
-                        else -> slideInHorizontally(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate)) { it / 4 } + fadeIn(tween(Motion.MEDIUM))
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.bg, scrolledContainerColor = colors.bg),
+                        )
                     }
                 },
-                exitTransition = {
-                    when {
-                        betweenTabs() -> tabExit()
-                        targetState.destination.route == Routes.ASSISTANT ->
-                            scaleOut(tween(Motion.LONG, easing = Motion.Emphasized), targetScale = 0.96f) + fadeOut(tween(Motion.LONG))
-                        else -> slideOutHorizontally(tween(Motion.LONG, easing = Motion.Emphasized)) { -it / 10 } + fadeOut(tween(Motion.MEDIUM))
-                    }
-                },
-                popEnterTransition = {
-                    when {
-                        betweenTabs() -> tabEnter()
-                        initialState.destination.route == Routes.ASSISTANT ->
-                            scaleIn(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate), initialScale = 0.96f) + fadeIn(tween(Motion.MEDIUM))
-                        else -> slideInHorizontally(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate)) { -it / 10 } + fadeIn(tween(Motion.MEDIUM))
-                    }
-                },
-                popExitTransition = {
-                    when {
-                        betweenTabs() -> tabExit()
-                        initialState.destination.route == Routes.ASSISTANT ->
-                            slideOutVertically(tween(Motion.MEDIUM, easing = Motion.EmphasizedAccelerate)) { it / 6 } + fadeOut(tween(Motion.MEDIUM))
-                        else -> slideOutHorizontally(tween(Motion.MEDIUM, easing = Motion.EmphasizedAccelerate)) { it / 4 } + fadeOut(tween(Motion.MEDIUM))
-                    }
-                },
-            ) {
-                composable(Tab.Today.route) {
-                    TodayScreen(
-                        container,
-                        TodayNav(
-                            openTraining = { nav.openTab(Tab.Training.route) },
-                            openBody = { nav.openTab(Tab.Body.route) },
-                            openDiet = { nav.openTab(Tab.Diet.route) },
-                            completeProfile = completeProfile,
-                        ),
-                    )
+            ) { padding ->
+                // 营养目标缺资料时的「去填写」：只差体重记录就去身体页，否则去个人信息
+                val completeProfile: (List<String>) -> Unit = { missing ->
+                    if (missing == listOf("体重记录")) nav.openTab(Tab.Body.route) else nav.navigate(Routes.PROFILE)
                 }
-                composable(Tab.Diet.route) {
-                    DietScreen(container, completeProfile) { day -> nav.navigate(Routes.addFood(day)) }
-                }
-                composable(Tab.Training.route) {
-                    TrainingScreen(
-                        container,
-                        TrainingNav(
-                            openExercise = { nav.navigate(Routes.exercise(it)) },
-                            openLibrary = { nav.navigate(Routes.LIBRARY) },
-                            openGenerate = { nav.navigate(Routes.GENERATE) },
-                            openOperations = { nav.navigate(Routes.OPERATIONS) },
-                            askAi = { askAi(it) },
-                        ),
-                    )
-                }
-                composable(Tab.Body.route) { BodyScreen(container) }
-                composable(Routes.SETTINGS) {
-                    SettingsScreen(
-                        container,
-                        SettingsNav(
-                            openAiSettings = { nav.navigate(Routes.AI_SETTINGS) },
-                            openProfile = { nav.navigate(Routes.PROFILE) },
-                            openOperations = { nav.navigate(Routes.OPERATIONS) },
+                NavHost(
+                    navController = nav,
+                    startDestination = Tab.Today.route,
+                    modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+                    enterTransition = {
+                        when {
+                            betweenTabs() -> tabEnter()
+                            targetState.destination.route == Routes.ASSISTANT ->
+                                slideInVertically(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate)) { it / 6 } + fadeIn(tween(Motion.MEDIUM))
+                            else -> slideInHorizontally(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate)) { it / 4 } + fadeIn(tween(Motion.MEDIUM))
+                        }
+                    },
+                    exitTransition = {
+                        when {
+                            betweenTabs() -> tabExit()
+                            targetState.destination.route == Routes.ASSISTANT ->
+                                scaleOut(tween(Motion.LONG, easing = Motion.Emphasized), targetScale = 0.96f) + fadeOut(tween(Motion.LONG))
+                            else -> slideOutHorizontally(tween(Motion.LONG, easing = Motion.Emphasized)) { -it / 10 } + fadeOut(tween(Motion.MEDIUM))
+                        }
+                    },
+                    popEnterTransition = {
+                        when {
+                            betweenTabs() -> tabEnter()
+                            initialState.destination.route == Routes.ASSISTANT ->
+                                scaleIn(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate), initialScale = 0.96f) + fadeIn(tween(Motion.MEDIUM))
+                            else -> slideInHorizontally(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate)) { -it / 10 } + fadeIn(tween(Motion.MEDIUM))
+                        }
+                    },
+                    popExitTransition = {
+                        when {
+                            betweenTabs() -> tabExit()
+                            initialState.destination.route == Routes.ASSISTANT ->
+                                slideOutVertically(tween(Motion.MEDIUM, easing = Motion.EmphasizedAccelerate)) { it / 6 } + fadeOut(tween(Motion.MEDIUM))
+                            else -> slideOutHorizontally(tween(Motion.MEDIUM, easing = Motion.EmphasizedAccelerate)) { it / 4 } + fadeOut(tween(Motion.MEDIUM))
+                        }
+                    },
+                ) {
+                    composable(Tab.Today.route) {
+                        TodayScreen(
+                            container,
+                            TodayNav(
+                                openTraining = { nav.openTab(Tab.Training.route) },
+                                openBody = { nav.openTab(Tab.Body.route) },
+                                openDiet = { nav.openTab(Tab.Diet.route) },
+                                completeProfile = completeProfile,
+                            ),
+                        )
+                    }
+                    composable(Tab.Diet.route) {
+                        DietScreen(container, completeProfile) { day -> nav.navigate(Routes.addFood(day)) }
+                    }
+                    composable(Tab.Training.route) {
+                        TrainingScreen(
+                            container,
+                            TrainingNav(
+                                openExercise = { nav.navigate(Routes.exercise(it)) },
+                                openLibrary = { nav.navigate(Routes.LIBRARY) },
+                                openGenerate = { nav.navigate(Routes.GENERATE) },
+                                openOperations = { nav.navigate(Routes.OPERATIONS) },
+                                askAi = { askAi(it) },
+                            ),
+                        )
+                    }
+                    composable(Tab.Body.route) { BodyScreen(container) }
+                    composable(Routes.SETTINGS) {
+                        SettingsScreen(
+                            container,
+                            SettingsNav(
+                                openAiSettings = { nav.navigate(Routes.AI_SETTINGS) },
+                                openProfile = { nav.navigate(Routes.PROFILE) },
+                                openOperations = { nav.navigate(Routes.OPERATIONS) },
+                                openFavorites = { nav.navigate(Routes.FAVORITES) },
+                            ),
+                        )
+                    }
+                    composable(Routes.AI_SETTINGS) { AiSettingsScreen(container) }
+                    composable(Routes.PROFILE) { ProfileScreen(container) { nav.popBackStack() } }
+                    composable(Routes.OPERATIONS) { OperationsScreen(container) }
+                    composable(Routes.ASSISTANT) { AssistantScreen(container.assistant) }
+                    composable(
+                        Routes.ADD_FOOD,
+                        arguments = listOf(navArgument("day") { type = NavType.LongType }),
+                    ) { entry ->
+                        AddFoodScreen(
+                            container,
+                            day = LocalDate.ofEpochDay(entry.arguments?.getLong("day") ?: LocalDate.now().toEpochDay()),
+                            onDone = { nav.popBackStack() },
                             openFavorites = { nav.navigate(Routes.FAVORITES) },
-                        ),
-                    )
+                        )
+                    }
+                    composable(Routes.LIBRARY) {
+                        ExerciseLibraryScreen(container.exercises) { nav.navigate(Routes.exercise(it)) }
+                    }
+                    composable(
+                        Routes.EXERCISE,
+                        arguments = listOf(navArgument("id") { type = NavType.StringType }),
+                    ) { entry ->
+                        ExerciseDetailScreen(container.exercises[entry.arguments?.getString("id")])
+                    }
+                    composable(Routes.GENERATE) { GeneratePlanScreen(container) { nav.popBackStack() } }
+                    composable(Routes.FAVORITES) { FavoritesScreen(container) }
                 }
-                composable(Routes.AI_SETTINGS) { AiSettingsScreen(container) }
-                composable(Routes.PROFILE) { ProfileScreen(container) { nav.popBackStack() } }
-                composable(Routes.OPERATIONS) { OperationsScreen(container) }
-                composable(Routes.ASSISTANT) { AssistantScreen(container.assistant) }
-                composable(
-                    Routes.ADD_FOOD,
-                    arguments = listOf(navArgument("day") { type = NavType.LongType }),
-                ) { entry ->
-                    AddFoodScreen(
-                        container,
-                        day = LocalDate.ofEpochDay(entry.arguments?.getLong("day") ?: LocalDate.now().toEpochDay()),
-                        onDone = { nav.popBackStack() },
-                        openFavorites = { nav.navigate(Routes.FAVORITES) },
-                    )
-                }
-                composable(Routes.LIBRARY) {
-                    ExerciseLibraryScreen(container.exercises) { nav.navigate(Routes.exercise(it)) }
-                }
-                composable(
-                    Routes.EXERCISE,
-                    arguments = listOf(navArgument("id") { type = NavType.StringType }),
-                ) { entry ->
-                    ExerciseDetailScreen(container.exercises[entry.arguments?.getString("id")])
-                }
-                composable(Routes.GENERATE) { GeneratePlanScreen(container) { nav.popBackStack() } }
-                composable(Routes.FAVORITES) { FavoritesScreen(container) }
             }
+            // 底栏浮在页面上方、不占页面的位置：出现和消失只做淡入淡出，和页面切换同步。
+            // 页面大小始终不变，不会出现空档、跳动，也不会把正在退出的页面往上挤
+            FloatingBottomBar(
+                current = currentTab,
+                fallback = lastTab[0],
+                reduceMotion = reduceMotion,
+                onTab = { nav.openTab(it.route) },
+                onAi = { nav.navigate(Routes.ASSISTANT) },
+            )
         }
     }
+}
+
+/** 浮在页面最下方的底栏：在主页签时淡入，进二级页面时淡出 */
+@Composable
+private fun BoxScope.FloatingBottomBar(
+    current: Tab?,
+    fallback: Tab,
+    reduceMotion: Boolean,
+    onTab: (Tab) -> Unit,
+    onAi: () -> Unit,
+) {
+    val visible = current != null
+    val alpha = animateFloatAsState(
+        if (visible) 1f else 0f,
+        if (reduceMotion) snap() else tween(Motion.MEDIUM, easing = Motion.Emphasized),
+        label = "bottomBar",
+    )
+    // 只在「完全隐藏 ↔ 不是完全隐藏」切换时重组，透明度变化只在绘制时读取
+    val composed by remember { derivedStateOf { alpha.value > 0f } }
+    if (!composed) return
+    BottomBar(
+        current = current ?: fallback,
+        // 正在淡出时不响应点击
+        onTab = { if (visible) onTab(it) },
+        onAi = { if (visible) onAi() },
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .graphicsLayer {
+                this.alpha = alpha.value
+                // 半透明时默认会先画到和底栏一样大的离屏画布上，凸出底栏的「问 AI」按钮会被裁掉；
+                // 改成逐个绘制时乘透明度，不经过离屏画布
+                compositingStrategy = CompositingStrategy.ModulateAlpha
+            },
+    )
 }
 
 /** 底部导航：左右各两个页面，中间是凸起的「问 AI」按钮 */

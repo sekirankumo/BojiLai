@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import io.github.sekirankumo.fitlog.ui.components.BottomBarSpace
 import io.github.sekirankumo.fitlog.ui.components.itemMotion
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -94,7 +95,7 @@ fun DietScreen(container: AppContainer, completeProfile: (List<String>) -> Unit,
     var editing by remember { mutableStateOf<FoodEntry?>(null) }
 
     LazyColumn(
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp + BottomBarSpace),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { WeekStrip(day) { dayEpoch = it.toEpochDay() } }
