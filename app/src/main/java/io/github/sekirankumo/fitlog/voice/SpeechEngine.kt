@@ -5,7 +5,6 @@ import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
-import android.os.Build
 import android.os.SystemClock
 import com.k2fsa.sherpa.onnx.EndpointConfig
 import com.k2fsa.sherpa.onnx.EndpointRule
@@ -71,8 +70,8 @@ class SpeechEngine(private val context: Context, private val http: OkHttpClient)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** 识别库只打包了 arm64-v8a */
-    val supported: Boolean = Build.SUPPORTED_ABIS.contains("arm64-v8a")
+    /** 识别库只打包了 arm64-v8a，App 按其他架构安装时没有这个库 */
+    val supported: Boolean = File(context.applicationInfo.nativeLibraryDir ?: "", "libsherpa-onnx-jni.so").exists()
 
     /** 模型总大小（MB） */
     val modelSizeMb: Int = (FILES.sumOf { it.size } / 1_000_000).toInt()

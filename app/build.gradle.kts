@@ -39,9 +39,6 @@ android {
         versionCode = ciVersionCode
         versionName = "0.1.$ciVersionCode"
 
-        // 语音识别库只打包 64 位 ARM（几乎所有在用的安卓手机），其他机型改用系统语音识别
-        ndk { abiFilters += "arm64-v8a" }
-
         // 更新信息：GitHub API 的最新发布（github.com 的直接下载地址在部分网络下会超时）
         buildConfigField(
             "String",
@@ -91,6 +88,14 @@ android {
     packaging {
         // 压缩 so 文件，安装包和每次更新的下载量都小一半
         jniLibs.useLegacyPackaging = true
+        // 语音识别库只打包 64 位 ARM（几乎所有在用的安卓手机），其他机型改用系统语音识别。
+        // 不能用 abiFilters：那样连其他小的原生库也只剩 64 位，32 位手机就装不上了
+        jniLibs.excludes += listOf(
+            "lib/armeabi-v7a/libsherpa-onnx-jni.so",
+            "lib/x86/libsherpa-onnx-jni.so",
+            "lib/x86/libonnxruntime.so",
+            "lib/x86_64/libsherpa-onnx-jni.so",
+        )
     }
 }
 
