@@ -1,21 +1,18 @@
 package io.github.sekirankumo.fitlog.ui
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
@@ -69,6 +66,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
+import io.github.sekirankumo.fitlog.ui.components.LocalReduceMotion
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -177,6 +179,21 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
     val lastTab = remember { arrayOf(Tab.Today) }
     SideEffect { if (currentTab != null) lastTab[0] = currentTab }
 
+    // 底栏：进二级页面时立刻收起；回到主页签时等页面切换动画走完再浮上来，
+    // 免得底栏一出现就把正在退出的页面（比如 AI 助手的输入框）往上挤
+    val reduceMotion = LocalReduceMotion.current
+    var barShown by remember { mutableStateOf(false) }
+    val barEverShown = remember { booleanArrayOf(false) }
+    LaunchedEffect(currentTab != null) {
+        if (currentTab != null) {
+            if (barEverShown[0] && !reduceMotion) delay(Motion.LONG.toLong())
+            barShown = true
+            barEverShown[0] = true
+        } else {
+            barShown = false
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (openRoute == null) return@LaunchedEffect
         // 等导航图建好（第一个页面出现）后再跳转
@@ -210,14 +227,12 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
         Scaffold(
             containerColor = colors.bg,
             topBar = {
-                TopAppBar(
-                    title = {
-                        AnimatedContent(
-                            targetState = route,
-                            transitionSpec = { fadeIn(tween(Motion.MEDIUM)) togetherWith fadeOut(tween(Motion.SHORT)) },
-                            label = "title",
-                        ) { r ->
-                            val tab = Tab.entries.firstOrNull { it.route == r }
+                // 整条顶栏作为一个整体原地淡入淡出：返回箭头、标题、右侧按钮一起换，
+                // 不会出现标题被箭头挤走、从左往右擦出来的情况
+                Crossfade(targetState = route, animationSpec = tween(Motion.MEDIUM), label = "topBar") { r ->
+                    val tab = Tab.entries.firstOrNull { it.route == r }
+                    TopAppBar(
+                        title = {
                             if (tab == Tab.Today) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     LogoMark()
@@ -229,44 +244,42 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
                                     style = if (tab != null) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
                                 )
                             }
-                        }
-                    },
-                    navigationIcon = {
-                        if (route != null && currentTab == null) {
-                            IconButton(onClick = { nav.popBackStack() }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        },
+                        navigationIcon = {
+                            if (r != null && tab == null) {
+                                IconButton(onClick = { nav.popBackStack() }) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                                }
                             }
-                        }
-                    },
-                    actions = {
-                        if (currentTab != null) {
-                            IconButton(onClick = { nav.navigate(Routes.SETTINGS) }) {
-                                Icon(Icons.Filled.Settings, contentDescription = "设置", tint = colors.muted)
+                        },
+                        actions = {
+                            if (tab != null) {
+                                IconButton(onClick = { nav.navigate(Routes.SETTINGS) }) {
+                                    Icon(Icons.Filled.Settings, contentDescription = "设置", tint = colors.muted)
+                                }
                             }
-                        }
-                        if (route == Routes.ASSISTANT) {
-                            IconButton(onClick = { container.assistant.clear() }) {
-                                Icon(Icons.Filled.DeleteSweep, contentDescription = "清空对话", tint = colors.muted)
+                            if (r == Routes.ASSISTANT) {
+                                IconButton(onClick = { container.assistant.clear() }) {
+                                    Icon(Icons.Filled.DeleteSweep, contentDescription = "清空对话", tint = colors.muted)
+                                }
                             }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.bg, scrolledContainerColor = colors.bg),
-                )
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.bg, scrolledContainerColor = colors.bg),
+                    )
+                }
             },
             bottomBar = {
-                AnimatedVisibility(
-                    visible = currentTab != null,
-                    enter = slideInVertically(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate)) { it } +
-                        expandVertically(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate), clip = false) +
-                        fadeIn(tween(Motion.MEDIUM)),
-                    exit = slideOutVertically(tween(Motion.MEDIUM, easing = Motion.EmphasizedAccelerate)) { it } +
-                        shrinkVertically(tween(Motion.MEDIUM, easing = Motion.EmphasizedAccelerate), clip = false) +
-                        fadeOut(tween(Motion.SHORT)),
-                ) {
+                if (barShown) {
+                    val appear = remember { Animatable(if (reduceMotion) 1f else 0f) }
+                    LaunchedEffect(Unit) { appear.animateTo(1f, tween(Motion.MEDIUM, easing = Motion.EmphasizedDecelerate)) }
                     BottomBar(
                         current = currentTab ?: lastTab[0],
                         onTab = { nav.openTab(it.route) },
                         onAi = { nav.navigate(Routes.ASSISTANT) },
+                        modifier = Modifier.graphicsLayer {
+                            alpha = appear.value
+                            translationY = (1f - appear.value) * 24.dp.toPx()
+                        },
                     )
                 }
             },
@@ -383,10 +396,10 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
 
 /** 底部导航：左右各两个页面，中间是凸起的「问 AI」按钮 */
 @Composable
-private fun BottomBar(current: Tab, onTab: (Tab) -> Unit, onAi: () -> Unit) {
+private fun BottomBar(current: Tab, onTab: (Tab) -> Unit, onAi: () -> Unit, modifier: Modifier = Modifier) {
     val colors = Brand.colors
     // 用不裁剪的 Box 叠放：底栏在下，「问 AI」按钮浮在上面，凸出的部分不会被切掉
-    Box(Modifier.fillMaxWidth()) {
+    Box(modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().background(colors.surface)) {
             HorizontalDivider(color = colors.line)
             Row(
