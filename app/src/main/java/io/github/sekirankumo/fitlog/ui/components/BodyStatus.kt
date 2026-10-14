@@ -136,7 +136,7 @@ fun BodyStatusCard(
         if (recovering.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                recovering.forEach { (label, hours) -> Pill("$label · ${TrainingStats.formatLeft(hours)}") }
+                recovering.forEach { (label, _) -> Pill(label) }
             }
         }
     }
