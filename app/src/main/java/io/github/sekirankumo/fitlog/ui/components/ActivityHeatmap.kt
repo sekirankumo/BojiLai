@@ -48,21 +48,16 @@ fun ActivityHeatmap(daily: Map<LocalDate, Int>, modifier: Modifier = Modifier) {
     val labelStyle = TextStyle(fontSize = 10.sp, color = c.muted)
     val today = LocalDate.now()
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val labelW = 18.dp
         val gap = 3.dp
-        val cell = 12.dp
-        val weeks = ((maxWidth - labelW + gap) / (cell + gap)).toInt().coerceIn(4, 53)
+        // 先按约 13dp 的格子算能放几周，再把格子拉伸到正好铺满宽度
+        val weeks = ((maxWidth + gap) / (13.dp + gap)).toInt().coerceIn(4, 53)
+        val cell = (maxWidth - gap * (weeks - 1)) / weeks
         val firstMonday = today.with(DayOfWeek.MONDAY).minusWeeks((weeks - 1).toLong())
-        Canvas(Modifier.fillMaxWidth().height(16.dp + (cell + gap) * 7)) {
+        Canvas(Modifier.fillMaxWidth().height(16.dp + cell * 7 + gap * 6)) {
             val cellPx = cell.toPx()
             val gapPx = gap.toPx()
-            val left = size.width - weeks * (cellPx + gapPx) + gapPx
+            val left = 0f
             val top = 16.dp.toPx()
-            // 星期标签：一、三、五
-            listOf(0 to "一", 2 to "三", 4 to "五").forEach { (row, text) ->
-                val m = measurer.measure(text, labelStyle)
-                drawText(m, topLeft = Offset(0f, top + row * (cellPx + gapPx) + (cellPx - m.size.height) / 2))
-            }
             var lastLabelX = -1000f
             for (w in 0 until weeks) {
                 val monday = firstMonday.plusWeeks(w.toLong())

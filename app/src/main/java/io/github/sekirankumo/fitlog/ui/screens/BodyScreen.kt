@@ -235,7 +235,7 @@ private fun Summary(container: AppContainer, all: List<BodyRecord>, inRange: Lis
     val fDelta = latestFat?.bodyFatPct?.let { f -> firstFatInRange?.takeIf { it !== latestFat }?.bodyFatPct?.let { f - it } }
     fun deltaText(d: Double?) = d?.let { "${range.label}内 ${if (it >= 0) "+" else ""}${it.fmt()}" }
     io.github.sekirankumo.fitlog.ui.components.BodyStatusCard(
-        intensities = training.intensities,
+        muscles = training.muscles,
         female = profile.sex == "female",
         weight = latestWeight?.weightKg?.fmt() ?: "—",
         weightSub = deltaText(wDelta) ?: latestWeight?.let { TimeUtil.formatShort(it.measuredAt) } ?: "还没有记录",

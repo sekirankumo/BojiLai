@@ -35,7 +35,6 @@ import io.github.sekirankumo.fitlog.ui.components.ActivityHeatmap
 import io.github.sekirankumo.fitlog.ui.components.BCard
 import io.github.sekirankumo.fitlog.ui.components.BarProgress
 import io.github.sekirankumo.fitlog.ui.components.BodyStatusCard
-import io.github.sekirankumo.fitlog.ui.components.HeatmapFooter
 import io.github.sekirankumo.fitlog.ui.components.IconBadge
 import io.github.sekirankumo.fitlog.ui.components.NutritionSummary
 import io.github.sekirankumo.fitlog.ui.components.Pill
@@ -112,8 +111,6 @@ private fun TrainingCard(container: AppContainer, plan: PlanDay?, training: Trai
         }
         Spacer(Modifier.height(10.dp))
         ActivityHeatmap(training.daily)
-        Spacer(Modifier.height(6.dp))
-        HeatmapFooter(training.summary)
         HorizontalDivider(Modifier.padding(vertical = 14.dp), color = c.line)
 
         if (plan == null) {
@@ -169,7 +166,7 @@ private fun TodayBodyStatus(records: List<BodyRecord>, training: TrainingData, f
     val fDelta = latestF?.bodyFatPct?.let { f -> weekAgoF?.bodyFatPct?.let { f - it } }
     fun sign(d: Double) = if (d >= 0) "+" else ""
     BodyStatusCard(
-        intensities = training.intensities,
+        muscles = training.muscles,
         female = female,
         weight = latestW?.weightKg?.fmt() ?: "—",
         weightSub = wDelta?.let { "比一周前 ${sign(it)}${it.fmt()}" } ?: if (latestW == null) "还没有记录" else null,
