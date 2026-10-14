@@ -113,6 +113,33 @@ object SampleData {
             }
             d = d.plusDays(1)
         }
+        // 更早的训练历史（上一份计划），让热力图看起来像真实使用了几个月
+        var h = start.minusWeeks(20)
+        var n = 0
+        while (h.isBefore(start)) {
+            val t = when (h.dayOfWeek) {
+                DayOfWeek.MONDAY -> "胸 + 三头" to chest()
+                DayOfWeek.WEDNESDAY -> "腿 + 臀" to legs()
+                DayOfWeek.FRIDAY -> "背 + 二头" to back()
+                DayOfWeek.SATURDAY -> "肩 + 核心" to shoulders()
+                else -> null
+            }
+            n++
+            // 偶尔漏练、偶尔少做几个动作，看起来更真实
+            if (t != null && n % 7 != 3 && n % 11 != 5) {
+                val keep = if (n % 4 == 0) t.second.dropLast(2) else t.second
+                val ex = keep.map { e -> e.copy(sets = e.sets.map { it.copy(done = true, doneReps = it.reps, doneWeightKg = it.weightKg, doneDurationSec = it.durationSec) }) }
+                days += PlanDay(
+                    date = h.toEpochDay(),
+                    title = t.first,
+                    exercisesJson = plans.encode(ex),
+                    status = DayStatus.DONE,
+                    completedAt = at(h, 19, 30),
+                )
+            }
+            h = h.plusDays(1)
+        }
+
         // 今天：胸 + 三头，卧推已经做完，上斜哑铃做了一组
         val todayEx = chest().mapIndexed { i, e ->
             when (i) {

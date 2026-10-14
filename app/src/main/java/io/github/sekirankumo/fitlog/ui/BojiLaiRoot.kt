@@ -219,8 +219,6 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
                         openTraining = { nav.openTab(Tab.Training.route) },
                         openBody = { nav.openTab(Tab.Body.route) },
                         openDiet = { nav.openTab(Tab.Diet.route) },
-                        openSettings = { nav.navigate(Routes.SETTINGS) },
-                        askAi = { askAi(it) },
                     ),
                 )
             }

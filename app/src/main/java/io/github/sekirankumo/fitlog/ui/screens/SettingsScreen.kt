@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
@@ -78,6 +79,7 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
     var dataMessage by remember { mutableStateOf<String?>(null) }
     var confirmImport by remember { mutableStateOf<android.net.Uri?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
+    var showLicenses by remember { mutableStateOf(false) }
 
     LaunchedEffect(refresh) {
         healthStatus = when (health.sdkStatus()) {
@@ -205,6 +207,14 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
             )
             Divider()
             RowItem(
+                "开源许可",
+                subtitle = "动作示意图、人体肌肉图",
+                icon = Icons.Filled.Description,
+                onClick = { showLicenses = true },
+                trailing = chevron,
+            )
+            Divider()
+            RowItem(
                 "检查更新",
                 subtitle = when (val s = state) {
                     UpdateState.Checking -> "正在检查…"
@@ -223,6 +233,32 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
             )
         }
         Spacer(Modifier.height(24.dp))
+    }
+
+    if (showLicenses) {
+        val mit = remember {
+            runCatching { context.assets.open("musclemap/LICENSE.txt").bufferedReader().use { it.readText() } }.getOrDefault("")
+        }
+        AlertDialog(
+            onDismissRequest = { showLicenses = false },
+            containerColor = c.surface,
+            title = { Text("开源许可") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Text("动作示意图和动作数据", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "free-exercise-db（github.com/yuhonas/free-exercise-db），公共领域（The Unlicense）。中文说明为薄肌来自行编写。",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text("人体肌肉图", style = MaterialTheme.typography.titleSmall)
+                    Text("MuscleMap（github.com/melihcolpan/MuscleMap），MIT License：", style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(4.dp))
+                    Text(mit, style = MaterialTheme.typography.bodySmall, color = c.muted)
+                }
+            },
+            confirmButton = { TextButton(onClick = { showLicenses = false }) { Text("好") } },
+        )
     }
 
     confirmImport?.let { uri ->

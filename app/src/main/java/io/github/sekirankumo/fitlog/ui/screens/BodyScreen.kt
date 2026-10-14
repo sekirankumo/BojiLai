@@ -111,7 +111,7 @@ fun BodyScreen(container: AppContainer) {
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { Summary(records, inRange, range) }
+            item { Summary(container, records, inRange, range) }
 
             item {
                 BCard {
@@ -222,34 +222,28 @@ fun BodyScreen(container: AppContainer) {
     }
 }
 
+/** 顶部的身体状态卡片（和今日页同一个组件），体重体脂的变化按所选时间范围计算 */
 @Composable
-private fun Summary(all: List<BodyRecord>, inRange: List<BodyRecord>, range: Range) {
-    val c = Brand.colors
+private fun Summary(container: AppContainer, all: List<BodyRecord>, inRange: List<BodyRecord>, range: Range) {
+    val training = io.github.sekirankumo.fitlog.ui.components.rememberTrainingData(container)
+    val profile by container.profile.profile.collectAsState(initial = io.github.sekirankumo.fitlog.data.UserProfile())
     val latestWeight = all.firstOrNull { it.weightKg != null }
     val latestFat = all.firstOrNull { it.bodyFatPct != null }
     val firstWeightInRange = inRange.lastOrNull { it.weightKg != null }
     val firstFatInRange = inRange.lastOrNull { it.bodyFatPct != null }
     val wDelta = latestWeight?.weightKg?.let { w -> firstWeightInRange?.takeIf { it !== latestWeight }?.weightKg?.let { w - it } }
     val fDelta = latestFat?.bodyFatPct?.let { f -> firstFatInRange?.takeIf { it !== latestFat }?.bodyFatPct?.let { f - it } }
-    fun deltaText(d: Double?, unit: String) = d?.let { "${range.label}内 ${if (it >= 0) "+" else ""}${it.fmt()}$unit" }
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        StatTile(
-            label = "最新体重",
-            value = latestWeight?.weightKg?.fmt() ?: "—",
-            unit = "kg",
-            sub = deltaText(wDelta, " kg") ?: latestWeight?.let { TimeUtil.formatShort(it.measuredAt) } ?: "还没有记录",
-            subColor = if (wDelta != null && wDelta < 0) c.brand else c.muted,
-            modifier = Modifier.weight(1f),
-        )
-        StatTile(
-            label = "最新体脂率",
-            value = latestFat?.bodyFatPct?.fmt() ?: "—",
-            unit = "%",
-            sub = deltaText(fDelta, "%") ?: latestFat?.let { TimeUtil.formatShort(it.measuredAt) } ?: "还没有记录",
-            subColor = if (fDelta != null && fDelta < 0) c.brand else c.muted,
-            modifier = Modifier.weight(1f),
-        )
-    }
+    fun deltaText(d: Double?) = d?.let { "${range.label}内 ${if (it >= 0) "+" else ""}${it.fmt()}" }
+    io.github.sekirankumo.fitlog.ui.components.BodyStatusCard(
+        intensities = training.intensities,
+        female = profile.sex == "female",
+        weight = latestWeight?.weightKg?.fmt() ?: "—",
+        weightSub = deltaText(wDelta) ?: latestWeight?.let { TimeUtil.formatShort(it.measuredAt) } ?: "还没有记录",
+        weightSubGood = wDelta != null && wDelta < 0,
+        fat = latestFat?.bodyFatPct?.fmt() ?: "—",
+        fatSub = deltaText(fDelta) ?: latestFat?.let { TimeUtil.formatShort(it.measuredAt) },
+        fatSubGood = fDelta != null && fDelta < 0,
+    )
 }
 
 @Composable
