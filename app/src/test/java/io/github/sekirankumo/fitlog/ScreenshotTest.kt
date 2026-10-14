@@ -85,6 +85,11 @@ class ScreenshotTest {
 
     @Test fun today() = shot("today", "today")
     @Test fun todayDark() = shot("today_dark", "today", dark = true)
+
+    /** 今日页往下滚动到身体状态 */
+    @Test fun todayBody() = shot("today_body", "today", after = {
+        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(2)
+    })
     @Test fun diet() = shot("diet", "diet")
     @Test fun addFood() = shot("add_food", "diet_add/${java.time.LocalDate.now().toEpochDay()}") {
         container.draftInbox.value = SampleData.drafts()

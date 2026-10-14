@@ -126,7 +126,8 @@ object SampleData {
             }
             n++
             // 偶尔漏练、偶尔少做几个动作，看起来更真实
-            if (t != null && n % 7 != 3 && n % 11 != 5) {
+            val week = n / 7
+            if (t != null && (week * 3 + h.dayOfWeek.value) % 10 != 0 && (week + h.dayOfWeek.value) % 13 != 0) {
                 val keep = if (n % 4 == 0) t.second.dropLast(2) else t.second
                 val ex = keep.map { e -> e.copy(sets = e.sets.map { it.copy(done = true, doneReps = it.reps, doneWeightKg = it.weightKg, doneDurationSec = it.durationSec) }) }
                 days += PlanDay(
