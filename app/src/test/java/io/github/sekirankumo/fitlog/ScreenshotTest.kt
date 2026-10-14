@@ -17,6 +17,13 @@ import io.github.sekirankumo.fitlog.ui.components.LocalReduceMotion
 import io.github.sekirankumo.fitlog.ui.components.VoicePanel
 import io.github.sekirankumo.fitlog.ui.theme.Brand
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -125,6 +132,49 @@ class ScreenshotTest {
     /** 个人信息没填全时，摄入卡片下方提示缺什么 */
     @Test fun todayMissing() = shot("today_missing", "today") {
         runBlocking { container.profile.update { it.copy(sex = null, birthYear = null) } }
+    }
+
+    /**
+     * 对照：半透明图层里凸出边界的内容。左边是默认合成方式（半透明时走离屏画布，凸出部分会被裁掉），
+     * 右边是底栏现在用的 ModulateAlpha（不应被裁）。用来确认截图环境能复现这类问题。
+     */
+    @Test fun alphaClipCheck() {
+        compose.setContent {
+            BojiLaiTheme(fontFamily = font) {
+                Row(Modifier.fillMaxSize().background(Color.White).padding(top = 80.dp, start = 24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    listOf(CompositingStrategy.Auto, CompositingStrategy.ModulateAlpha).forEach { strategy ->
+                        Box(
+                            Modifier
+                                .size(140.dp, 60.dp)
+                                .graphicsLayer {
+                                    alpha = 0.6f
+                                    compositingStrategy = strategy
+                                }
+                                .background(Color(0xFF1F6F54)),
+                        ) {
+                            Box(Modifier.align(Alignment.TopCenter).offset(y = (-30).dp).size(56.dp).background(Color(0xFF7FD6B0), CircleShape))
+                        }
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("screenshots/alpha_clip_check.png")
+    }
+
+    /** 底栏淡入到一半时截几帧，检查「问 AI」按钮有没有被裁 */
+    @Test fun barFadeIn() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            BojiLaiTheme(fontFamily = font) {
+                BojiLaiRoot(container, sideEffects = false)
+            }
+        }
+        repeat(4) { compose.mainClock.advanceTimeByFrame() }
+        for (i in 1..4) {
+            compose.mainClock.advanceTimeBy(40)
+            compose.onRoot().captureRoboImage("screenshots/bar_fade_$i.png")
+        }
     }
 
     /** 语音输入面板 */

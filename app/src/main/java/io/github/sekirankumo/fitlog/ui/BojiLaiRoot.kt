@@ -68,6 +68,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import io.github.sekirankumo.fitlog.ui.components.LocalReduceMotion
 import kotlinx.coroutines.delay
@@ -148,6 +149,10 @@ private val TITLES = mapOf(
 
 private val TAB_ROUTES = Tab.entries.map { it.route }.toSet()
 
+/** 从二级页面返回主页签时，底栏等多久再出现（和页面退出动画差不多长） */
+private const val BAR_DELAY_MS = 250L
+private const val BAR_FADE_MS = 200
+
 /** 两个底部页签之间切换：平级页面，只做快速淡入（带一点点放大），不左右滑 */
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.betweenTabs() =
     initialState.destination.route in TAB_ROUTES && targetState.destination.route in TAB_ROUTES
@@ -186,7 +191,7 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
     val barEverShown = remember { booleanArrayOf(false) }
     LaunchedEffect(currentTab != null) {
         if (currentTab != null) {
-            if (barEverShown[0] && !reduceMotion) delay(Motion.LONG.toLong())
+            if (barEverShown[0] && !reduceMotion) delay(BAR_DELAY_MS)
             barShown = true
             barEverShown[0] = true
         } else {
@@ -271,7 +276,7 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
             bottomBar = {
                 if (barShown) {
                     val appear = remember { Animatable(if (reduceMotion) 1f else 0f) }
-                    LaunchedEffect(Unit) { appear.animateTo(1f, tween(Motion.MEDIUM, easing = Motion.EmphasizedDecelerate)) }
+                    LaunchedEffect(Unit) { appear.animateTo(1f, tween(BAR_FADE_MS, easing = Motion.EmphasizedDecelerate)) }
                     BottomBar(
                         current = currentTab ?: lastTab[0],
                         onTab = { nav.openTab(it.route) },
@@ -279,6 +284,9 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
                         modifier = Modifier.graphicsLayer {
                             alpha = appear.value
                             translationY = (1f - appear.value) * 24.dp.toPx()
+                            // 半透明时默认会先画到和底栏一样大的离屏画布上，凸出底栏的「问 AI」按钮会被裁掉；
+                            // 改成逐个绘制时乘透明度，不经过离屏画布
+                            compositingStrategy = CompositingStrategy.ModulateAlpha
                         },
                     )
                 }
