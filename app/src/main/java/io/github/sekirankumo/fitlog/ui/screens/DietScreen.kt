@@ -1,5 +1,10 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import io.github.sekirankumo.fitlog.ui.components.Motion
+import io.github.sekirankumo.fitlog.ui.components.pressScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -99,11 +104,13 @@ fun DietScreen(container: AppContainer, completeProfile: (List<String>) -> Unit,
             )
         }
         item {
+            val addInteraction = remember { MutableInteractionSource() }
             Surface(
                 onClick = { openAdd(day) },
                 shape = RoundedCornerShape(20.dp),
                 color = c.brand,
-                modifier = Modifier.fillMaxWidth(),
+                interactionSource = addInteraction,
+                modifier = Modifier.fillMaxWidth().pressScale(addInteraction),
             ) {
                 Row(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconBadge(Icons.Filled.CameraAlt, tint = c.brand, background = c.onBrand, size = 44.dp)
@@ -129,7 +136,10 @@ fun DietScreen(container: AppContainer, completeProfile: (List<String>) -> Unit,
             val items = entries.filter { Meal.of(it.meal) == meal }
             if (items.isNotEmpty()) {
                 item(key = "meal_${meal.key}") {
-                    BCard(padding = PaddingValues(vertical = 8.dp)) {
+                    BCard(
+                        Modifier.animateItem().animateContentSize(tween(Motion.LONG, easing = Motion.Emphasized)),
+                        padding = PaddingValues(vertical = 8.dp),
+                    ) {
                         Row(
                             Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,

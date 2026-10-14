@@ -110,6 +110,9 @@ interface FoodDao {
     @Query("SELECT * FROM favorite_food WHERE name = :name LIMIT 1")
     suspend fun favoriteByName(name: String): FavoriteFood?
 
+    @Query("SELECT * FROM favorite_food WHERE id = :id")
+    suspend fun favorite(id: Long): FavoriteFood?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFavorite(food: FavoriteFood): Long
 

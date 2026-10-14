@@ -6,6 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,7 +63,16 @@ fun BCard(
     val shape = RoundedCornerShape(20.dp)
     val stroke = if (border) BorderStroke(1.dp, Brand.colors.line) else null
     if (onClick != null) {
-        Surface(onClick = onClick, modifier = modifier, shape = shape, color = color, border = stroke) {
+        // 可点的卡片按下时轻微缩小、松手回弹
+        val interaction = remember { MutableInteractionSource() }
+        Surface(
+            onClick = onClick,
+            modifier = modifier.pressScale(interaction, 0.98f),
+            shape = shape,
+            color = color,
+            border = stroke,
+            interactionSource = interaction,
+        ) {
             Column(Modifier.padding(padding), content = content)
         }
     } else {
@@ -127,13 +137,14 @@ fun ProgressRing(
     track: Color = Brand.colors.surface2,
     content: @Composable () -> Unit = {},
 ) {
+    val animated = animatedValue(progress.coerceIn(0f, 1f), "ring")
     Box(modifier.size(size), contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(size)) {
             val s = stroke.toPx()
             val arcSize = Size(this.size.width - s, this.size.height - s)
             val topLeft = Offset(s / 2, s / 2)
             drawArc(track, -90f, 360f, false, topLeft, arcSize, style = Stroke(s, cap = StrokeCap.Round))
-            val p = progress.coerceIn(0f, 1f)
+            val p = animated
             if (p > 0f) {
                 drawArc(color, -90f, 360f * p, false, topLeft, arcSize, style = Stroke(s, cap = StrokeCap.Round))
             }
@@ -151,8 +162,8 @@ fun BarProgress(
     track: Color = Brand.colors.surface2,
     height: Dp = 8.dp,
 ) {
+    val p = animatedValue(progress.coerceIn(0f, 1f), "bar")
     Box(modifier.fillMaxWidth().height(height).clip(CircleShape).background(track)) {
-        val p = progress.coerceIn(0f, 1f)
         if (p > 0f) {
             Box(Modifier.fillMaxWidth(p).height(height).clip(CircleShape).background(color))
         }

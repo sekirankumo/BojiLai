@@ -1,5 +1,10 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import io.github.sekirankumo.fitlog.ui.components.Motion
+import io.github.sekirankumo.fitlog.ui.components.TypingDots
+import io.github.sekirankumo.fitlog.ui.components.pressScale
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -205,18 +210,23 @@ fun AssistantScreen(engine: AssistantEngine) {
                 item { Welcome { input = it } }
             }
             items(items, key = { it.id }) { item ->
-                when (item) {
-                    is ChatItem.User -> UserMessage(item) { index -> viewer = item.images to index }
-                    is ChatItem.Assistant -> AssistantBubble(item.text)
-                    is ChatItem.Action -> ActionCard(item, onUndo = { engine.undo(item) })
-                    is ChatItem.Pending -> PendingCard(item, onDecide = engine::decide)
-                    is ChatItem.Error -> ErrorCard(item.message)
+                Box(Modifier.animateItem()) {
+                    when (item) {
+                        is ChatItem.User -> UserMessage(item) { index -> viewer = item.images to index }
+                        is ChatItem.Assistant -> AssistantBubble(item.text)
+                        is ChatItem.Action -> ActionCard(item, onUndo = { engine.undo(item) })
+                        is ChatItem.Pending -> PendingCard(item, onDecide = engine::decide)
+                        is ChatItem.Error -> ErrorCard(item.message)
+                    }
                 }
             }
             if (busy && items.none { it is ChatItem.Pending }) {
-                item {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
-                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                item(key = "thinking") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.animateItem().padding(start = 6.dp, top = 4.dp),
+                    ) {
+                        TypingDots(c.brand)
                         Text("  ${status ?: "正在思考…"}", style = MaterialTheme.typography.bodySmall, color = c.muted)
                     }
                 }
@@ -343,6 +353,8 @@ fun AssistantScreen(engine: AssistantEngine) {
                     Spacer(Modifier.width(8.dp))
                     val imagesReady = attachments.all { it.image != null }
                     val canSend = !busy && imagesReady && (input.isNotBlank() || attachments.isNotEmpty())
+                    val sendInteraction = remember { MutableInteractionSource() }
+                    val sendColor by animateColorAsState(if (canSend) c.brand else c.surface2, tween(Motion.MEDIUM), label = "send")
                     Surface(
                         onClick = {
                             // 听写中直接点发送：等最后一句识别完再发
@@ -355,8 +367,9 @@ fun AssistantScreen(engine: AssistantEngine) {
                         },
                         enabled = canSend,
                         shape = CircleShape,
-                        color = if (canSend) c.brand else c.surface2,
-                        modifier = Modifier.size(48.dp),
+                        color = sendColor,
+                        interactionSource = sendInteraction,
+                        modifier = Modifier.size(48.dp).pressScale(sendInteraction, 0.9f),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(

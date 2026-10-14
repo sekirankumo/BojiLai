@@ -299,6 +299,7 @@ class AssistantEngine(
             - 用户说吃了什么时，你自己估算份量和营养后调用 add_food_entries，每种食物一条；中式菜品要把烹调用油算进去。收藏的常吃食物优先用 list_favorite_foods 里的数值。
             - 训练相关：安排或替换动作前先用 search_exercises 查动作库，exercise_id 必须来自动作库；打卡前先用 get_training_day 看编号。
             - 用户说某个动作做不了时，找 2–3 个锻炼相同肌群、符合用户器材的替代动作让用户选，再用 replace_exercise。
+            - 常吃食物只在记录饮食时添加：用户要收藏时，在 add_food_entries 里给那条食物设 add_to_favorites。修改、删除常吃先用 list_favorite_foods 查 id，再用 update_favorite_food / delete_favorite_food。
             - 用户提到伤病、身体限制、饮食习惯、训练偏好等长期信息时，用 remember_user_info 记下来。
             - 修改类操作会先给用户确认（用户也可能设置了直接执行），执行结果会通过工具返回告诉你；用户取消就不要再重复尝试。
             - 用户想撤销之前的修改（包括漏打卡后的自动调整）时，先用 list_recent_operations 找到对应操作，再调用 undo_operation。

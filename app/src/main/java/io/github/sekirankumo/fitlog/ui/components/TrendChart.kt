@@ -6,7 +6,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -31,6 +36,15 @@ data class ChartPoint(val time: Long, val value: Double)
  */
 @Composable
 fun TrendChart(points: List<ChartPoint>, modifier: Modifier = Modifier) {
+    // 数据变化（切换指标或时间范围）时，折线从左往右重新画出来
+    val reveal = remember { Animatable(1f) }
+    val reduceMotion = LocalReduceMotion.current
+    LaunchedEffect(points) {
+        if (!reduceMotion) {
+            reveal.snapTo(0f)
+            reveal.animateTo(1f, tween(800, easing = Motion.EmphasizedDecelerate))
+        }
+    }
     if (points.size < 2) {
         Box(modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
             Text(
@@ -83,6 +97,8 @@ fun TrendChart(points: List<ChartPoint>, modifier: Modifier = Modifier) {
         drawText(startLabel, topLeft = Offset(left, bottom + 4.dp.toPx()))
         drawText(endLabel, topLeft = Offset(right - endLabel.size.width, bottom + 4.dp.toPx()))
 
+        // 折线只画到当前展开的位置
+        clipRect(right = left + (right - left) * reveal.value + 6.dp.toPx()) {
         // 原始测量
         val rawPath = Path()
         sorted.forEachIndexed { i, p ->
@@ -101,6 +117,7 @@ fun TrendChart(points: List<ChartPoint>, modifier: Modifier = Modifier) {
             main,
             style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
         )
+        }
     }
 }
 

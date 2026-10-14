@@ -56,7 +56,7 @@ fun NutritionSummary(
                         style = MaterialTheme.typography.labelSmall,
                         color = c.muted,
                     )
-                    Text(
+                    AnimatedNumber(
                         left?.let { abs(it).roundToInt().toString() } ?: "—",
                         style = MaterialTheme.typography.headlineSmall,
                         color = if (over) c.danger else c.text,
@@ -69,7 +69,7 @@ fun NutritionSummary(
                 Column {
                     Text(title, style = MaterialTheme.typography.labelMedium, color = c.muted)
                     Row(verticalAlignment = Alignment.Bottom) {
-                        Text("${totals.kcal.roundToInt()}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+                        AnimatedNumber("${totals.kcal.roundToInt()}", style = MaterialTheme.typography.headlineMedium, color = c.text, fontWeight = FontWeight.ExtraBold)
                         Text(
                             " / ${target ?: "—"} kcal",
                             style = MaterialTheme.typography.bodySmall,

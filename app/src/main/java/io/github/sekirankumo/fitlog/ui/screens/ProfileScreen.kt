@@ -1,6 +1,5 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
-import android.app.TimePickerDialog
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,10 +13,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -26,10 +23,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import io.github.sekirankumo.fitlog.AppContainer
-import io.github.sekirankumo.fitlog.background.WorkScheduler
 import io.github.sekirankumo.fitlog.data.NutritionTargets
 import io.github.sekirankumo.fitlog.data.UserProfile
 import io.github.sekirankumo.fitlog.ui.components.NumberField
@@ -38,7 +33,6 @@ import kotlinx.coroutines.launch
 /** 个人信息：用于计算营养目标、生成训练计划；AI 记住的信息也在这里修改 */
 @Composable
 fun ProfileScreen(container: AppContainer, onDone: () -> Unit) {
-    val context = LocalContext.current
     var p by remember { mutableStateOf<UserProfile?>(null) }
     val latestFlow = remember { container.database.bodyRecordDao().observeLatest() }
     val records by latestFlow.collectAsState(initial = null)
@@ -110,18 +104,6 @@ fun ProfileScreen(container: AppContainer, onDone: () -> Unit) {
             label = { Text("可用器材") },
             modifier = Modifier.fillMaxWidth(),
         )
-        Row {
-            OutlinedButton(onClick = {
-                val m = profile.reminderMinuteOfDay ?: (19 * 60)
-                TimePickerDialog(context, { _, h, min -> set { it.copy(reminderMinuteOfDay = h * 60 + min) } }, m / 60, m % 60, true).show()
-            }) {
-                Text(profile.reminderMinuteOfDay?.let { "训练提醒：%02d:%02d".format(it / 60, it % 60) } ?: "设置训练提醒")
-            }
-            if (profile.reminderMinuteOfDay != null) {
-                TextButton(onClick = { set { it.copy(reminderMinuteOfDay = null) } }) { Text("关闭提醒") }
-            }
-        }
-
         Text("AI 记住的信息", style = MaterialTheme.typography.titleSmall)
         OutlinedTextField(
             value = profile.notes,
@@ -135,8 +117,8 @@ fun ProfileScreen(container: AppContainer, onDone: () -> Unit) {
             onClick = {
                 val toSave = profile
                 container.appScope.launch {
-                    container.profile.update { toSave }
-                    WorkScheduler.scheduleReminder(context.applicationContext, toSave.reminderMinuteOfDay)
+                    // 训练提醒在设置页里单独管理，这里不覆盖
+                    container.profile.update { current -> toSave.copy(reminderMinuteOfDay = current.reminderMinuteOfDay) }
                 }
                 onDone()
             },

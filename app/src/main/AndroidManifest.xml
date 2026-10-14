@@ -14,7 +14,6 @@
     <!-- Health Connect：读取小米运动健康等同步过来的数据 -->
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
     <uses-permission android:name="android.permission.health.READ_BODY_FAT" />
-    <uses-permission android:name="android.permission.health.READ_STEPS" />
 
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
@@ -32,7 +31,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
-        android:theme="@style/Theme.BojiLai">
+        android:theme="@style/Theme.BojiLai"
+        android:enableOnBackInvokedCallback="true">
 
         <activity
             android:name=".MainActivity"

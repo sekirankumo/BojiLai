@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
@@ -94,7 +95,7 @@ fun AddFoodScreen(
     container: AppContainer,
     day: LocalDate,
     onDone: () -> Unit,
-
+    openFavorites: () -> Unit = {},
 ) {
     val c = Brand.colors
     val context = LocalContext.current
@@ -277,6 +278,14 @@ fun AddFoodScreen(
                                     border = AssistChipDefaults.assistChipBorder(enabled = true, borderColor = c.line),
                                 )
                             }
+                            // 滑到最后是管理入口：修改、删除常吃
+                            AssistChip(
+                                onClick = openFavorites,
+                                label = { Text("管理") },
+                                trailingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, modifier = Modifier.size(16.dp), tint = c.muted) },
+                                colors = AssistChipDefaults.assistChipColors(containerColor = c.surface2),
+                                border = AssistChipDefaults.assistChipBorder(enabled = true, borderColor = c.surface2),
+                            )
                         }
                     }
                 }
@@ -286,7 +295,7 @@ fun AddFoodScreen(
                 item { SectionHeader("确认一下（${drafts.size} 项）") }
             }
             items(drafts, key = { it.key }) { d ->
-                BCard {
+                BCard(Modifier.animateItem()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             d.name.ifBlank { "新食物" },

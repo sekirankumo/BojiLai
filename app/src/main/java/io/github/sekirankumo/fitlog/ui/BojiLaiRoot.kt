@@ -1,5 +1,32 @@
 package io.github.sekirankumo.fitlog.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.lerp
+import androidx.navigation.NavBackStackEntry
+import io.github.sekirankumo.fitlog.ui.components.Motion
+import io.github.sekirankumo.fitlog.ui.components.pressScale
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -71,6 +98,7 @@ import io.github.sekirankumo.fitlog.ui.screens.ProfileScreen
 import io.github.sekirankumo.fitlog.ui.screens.SettingsNav
 import io.github.sekirankumo.fitlog.ui.screens.SettingsScreen
 import io.github.sekirankumo.fitlog.ui.screens.TodayNav
+import io.github.sekirankumo.fitlog.ui.screens.FavoritesScreen
 import io.github.sekirankumo.fitlog.ui.components.LocalSpeechEngine
 import io.github.sekirankumo.fitlog.ui.screens.TodayScreen
 import io.github.sekirankumo.fitlog.ui.screens.TrainingNav
@@ -97,6 +125,7 @@ object Routes {
     const val LIBRARY = "exercise_library"
     const val EXERCISE = "exercise/{id}"
     const val GENERATE = "generate_plan"
+    const val FAVORITES = "favorites"
 
     fun addFood(day: LocalDate) = "diet_add/${day.toEpochDay()}"
     fun exercise(id: String) = "exercise/$id"
@@ -112,7 +141,20 @@ private val TITLES = mapOf(
     Routes.LIBRARY to "动作库",
     Routes.EXERCISE to "动作详情",
     Routes.GENERATE to "生成训练计划",
+    Routes.FAVORITES to "常吃食物",
 )
+
+private val TAB_ROUTES = Tab.entries.map { it.route }.toSet()
+
+/** 两个底部页签之间切换：平级页面，只做快速淡入（带一点点放大），不左右滑 */
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.betweenTabs() =
+    initialState.destination.route in TAB_ROUTES && targetState.destination.route in TAB_ROUTES
+
+private fun tabEnter() =
+    fadeIn(tween(Motion.MEDIUM, delayMillis = 60, easing = Motion.EmphasizedDecelerate)) +
+        scaleIn(tween(Motion.MEDIUM, delayMillis = 60, easing = Motion.EmphasizedDecelerate), initialScale = 0.98f)
+
+private fun tabExit() = fadeOut(tween(90))
 
 private fun NavController.openTab(route: String) = navigate(route) {
     popUpTo(graph.findStartDestination().id) { saveState = true }
@@ -131,6 +173,9 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
     val currentTab = Tab.entries.firstOrNull { it.route == route }
+    // 底栏滑出时还要显示离开前的页签
+    val lastTab = remember { arrayOf(Tab.Today) }
+    SideEffect { if (currentTab != null) lastTab[0] = currentTab }
 
     LaunchedEffect(Unit) {
         if (openRoute == null) return@LaunchedEffect
@@ -167,16 +212,23 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
             topBar = {
                 TopAppBar(
                     title = {
-                        if (currentTab == Tab.Today) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                LogoMark()
-                                Text("  薄肌来", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                        AnimatedContent(
+                            targetState = route,
+                            transitionSpec = { fadeIn(tween(Motion.MEDIUM)) togetherWith fadeOut(tween(Motion.SHORT)) },
+                            label = "title",
+                        ) { r ->
+                            val tab = Tab.entries.firstOrNull { it.route == r }
+                            if (tab == Tab.Today) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    LogoMark()
+                                    Text("  薄肌来", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                                }
+                            } else {
+                                Text(
+                                    TITLES[r] ?: tab?.label ?: "",
+                                    style = if (tab != null) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
+                                )
                             }
-                        } else {
-                            Text(
-                                TITLES[route] ?: currentTab?.label ?: "",
-                                style = if (currentTab != null) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
-                            )
                         }
                     },
                     navigationIcon = {
@@ -202,9 +254,17 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
                 )
             },
             bottomBar = {
-                if (currentTab != null) {
+                AnimatedVisibility(
+                    visible = currentTab != null,
+                    enter = slideInVertically(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate)) { it } +
+                        expandVertically(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate), clip = false) +
+                        fadeIn(tween(Motion.MEDIUM)),
+                    exit = slideOutVertically(tween(Motion.MEDIUM, easing = Motion.EmphasizedAccelerate)) { it } +
+                        shrinkVertically(tween(Motion.MEDIUM, easing = Motion.EmphasizedAccelerate), clip = false) +
+                        fadeOut(tween(Motion.SHORT)),
+                ) {
                     BottomBar(
-                        current = currentTab,
+                        current = currentTab ?: lastTab[0],
                         onTab = { nav.openTab(it.route) },
                         onAi = { nav.navigate(Routes.ASSISTANT) },
                     )
@@ -219,6 +279,38 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
                 navController = nav,
                 startDestination = Tab.Today.route,
                 modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+                enterTransition = {
+                    when {
+                        betweenTabs() -> tabEnter()
+                        targetState.destination.route == Routes.ASSISTANT ->
+                            slideInVertically(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate)) { it / 6 } + fadeIn(tween(Motion.MEDIUM))
+                        else -> slideInHorizontally(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate)) { it / 4 } + fadeIn(tween(Motion.MEDIUM))
+                    }
+                },
+                exitTransition = {
+                    when {
+                        betweenTabs() -> tabExit()
+                        targetState.destination.route == Routes.ASSISTANT ->
+                            scaleOut(tween(Motion.LONG, easing = Motion.Emphasized), targetScale = 0.96f) + fadeOut(tween(Motion.LONG))
+                        else -> slideOutHorizontally(tween(Motion.LONG, easing = Motion.Emphasized)) { -it / 10 } + fadeOut(tween(Motion.MEDIUM))
+                    }
+                },
+                popEnterTransition = {
+                    when {
+                        betweenTabs() -> tabEnter()
+                        initialState.destination.route == Routes.ASSISTANT ->
+                            scaleIn(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate), initialScale = 0.96f) + fadeIn(tween(Motion.MEDIUM))
+                        else -> slideInHorizontally(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate)) { -it / 10 } + fadeIn(tween(Motion.MEDIUM))
+                    }
+                },
+                popExitTransition = {
+                    when {
+                        betweenTabs() -> tabExit()
+                        initialState.destination.route == Routes.ASSISTANT ->
+                            slideOutVertically(tween(Motion.MEDIUM, easing = Motion.EmphasizedAccelerate)) { it / 6 } + fadeOut(tween(Motion.MEDIUM))
+                        else -> slideOutHorizontally(tween(Motion.MEDIUM, easing = Motion.EmphasizedAccelerate)) { it / 4 } + fadeOut(tween(Motion.MEDIUM))
+                    }
+                },
             ) {
                 composable(Tab.Today.route) {
                     TodayScreen(
@@ -254,6 +346,7 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
                             openAiSettings = { nav.navigate(Routes.AI_SETTINGS) },
                             openProfile = { nav.navigate(Routes.PROFILE) },
                             openOperations = { nav.navigate(Routes.OPERATIONS) },
+                            openFavorites = { nav.navigate(Routes.FAVORITES) },
                         ),
                     )
                 }
@@ -269,6 +362,7 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
                         container,
                         day = LocalDate.ofEpochDay(entry.arguments?.getLong("day") ?: LocalDate.now().toEpochDay()),
                         onDone = { nav.popBackStack() },
+                        openFavorites = { nav.navigate(Routes.FAVORITES) },
                     )
                 }
                 composable(Routes.LIBRARY) {
@@ -281,6 +375,7 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
                     ExerciseDetailScreen(container.exercises[entry.arguments?.getString("id")])
                 }
                 composable(Routes.GENERATE) { GeneratePlanScreen(container) { nav.popBackStack() } }
+                composable(Routes.FAVORITES) { FavoritesScreen(container) }
             }
         }
     }
@@ -305,13 +400,15 @@ private fun BottomBar(current: Tab, onTab: (Tab) -> Unit, onAi: () -> Unit) {
                 TabItem(Tab.Body, current, onTab)
             }
         }
+        val aiInteraction = remember { MutableInteractionSource() }
         Surface(
             onClick = onAi,
             shape = CircleShape,
             color = colors.brand,
             border = BorderStroke(4.dp, colors.surface),
             shadowElevation = 6.dp,
-            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-20).dp).size(64.dp),
+            interactionSource = aiInteraction,
+            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-20).dp).size(64.dp).pressScale(aiInteraction, 0.92f),
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -328,6 +425,12 @@ private fun BottomBar(current: Tab, onTab: (Tab) -> Unit, onAi: () -> Unit) {
 private fun androidx.compose.foundation.layout.RowScope.TabItem(tab: Tab, current: Tab, onTab: (Tab) -> Unit) {
     val colors = Brand.colors
     val selected = tab == current
+    val progress by animateFloatAsState(
+        if (selected) 1f else 0f,
+        tween(Motion.MEDIUM, easing = Motion.Emphasized),
+        label = "tab",
+    )
+    val tint = lerp(colors.muted, colors.brand, progress)
     Column(
         Modifier
             .weight(1f)
@@ -338,21 +441,31 @@ private fun androidx.compose.foundation.layout.RowScope.TabItem(tab: Tab, curren
     ) {
         Box(
             Modifier
-                .clip(CircleShape)
-                .background(if (selected) colors.brandSoft else androidx.compose.ui.graphics.Color.Transparent)
+                .drawBehind {
+                    val p = progress.coerceIn(0f, 1f)
+                    if (p > 0.01f) {
+                        val w = size.width * (0.4f + 0.6f * p)
+                        drawRoundRect(
+                            colors.brandSoft.copy(alpha = p),
+                            topLeft = Offset((size.width - w) / 2, 0f),
+                            size = Size(w, size.height),
+                            cornerRadius = CornerRadius(size.height / 2),
+                        )
+                    }
+                }
                 .padding(horizontal = 16.dp, vertical = 4.dp),
         ) {
             Icon(
                 if (selected) tab.selectedIcon else tab.icon,
                 contentDescription = tab.label,
-                tint = if (selected) colors.brand else colors.muted,
+                tint = tint,
                 modifier = Modifier.size(22.dp),
             )
         }
         Text(
             tab.label,
             style = MaterialTheme.typography.labelMedium,
-            color = if (selected) colors.brand else colors.muted,
+            color = tint,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
         )
     }

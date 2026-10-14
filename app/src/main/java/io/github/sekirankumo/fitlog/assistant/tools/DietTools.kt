@@ -4,6 +4,8 @@ import io.github.sekirankumo.fitlog.assistant.AiTool
 import io.github.sekirankumo.fitlog.assistant.ToolException
 import io.github.sekirankumo.fitlog.assistant.ToolOutcome
 import io.github.sekirankumo.fitlog.assistant.arrayProp
+import io.github.sekirankumo.fitlog.assistant.bool
+import io.github.sekirankumo.fitlog.assistant.booleanProp
 import io.github.sekirankumo.fitlog.assistant.has
 import io.github.sekirankumo.fitlog.assistant.integerProp
 import io.github.sekirankumo.fitlog.assistant.long
@@ -15,6 +17,7 @@ import io.github.sekirankumo.fitlog.assistant.requireLong
 import io.github.sekirankumo.fitlog.assistant.str
 import io.github.sekirankumo.fitlog.assistant.stringProp
 import io.github.sekirankumo.fitlog.data.ProfileRepository
+import io.github.sekirankumo.fitlog.data.db.FavoriteFood
 import io.github.sekirankumo.fitlog.data.db.FoodDao
 import io.github.sekirankumo.fitlog.data.db.FoodEntry
 import io.github.sekirankumo.fitlog.data.db.Meal
@@ -24,7 +27,10 @@ import io.github.sekirankumo.fitlog.data.diet.describe
 import io.github.sekirankumo.fitlog.data.diet.round1
 import io.github.sekirankumo.fitlog.util.TimeUtil
 import io.github.sekirankumo.fitlog.util.fmt
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -44,7 +50,18 @@ private val FOOD_ITEM_SCHEMA = objectSchema(
     "carbs_g" to numberProp("碳水 g"),
     "meal" to stringProp("餐次", MEAL_KEYS),
     "time" to stringProp("进食时间 yyyy-MM-dd HH:mm，不填为现在"),
+    "add_to_favorites" to booleanProp("同时加入常吃（用户说要收藏、加入常吃时才设为 true）"),
 )
+
+private val favoriteJson = Json { ignoreUnknownKeys = true }
+
+private fun FavoriteFood.toJson(): JsonObject = favoriteJson.encodeToJsonElement(FavoriteFood.serializer(), this).jsonObject
+
+private fun JsonObject.toFavorite(): FavoriteFood = favoriteJson.decodeFromJsonElement(FavoriteFood.serializer(), this)
+
+private fun FavoriteFood.describe() =
+    "#$id $name${amount?.let { "（$it）" } ?: ""} ${grams?.let { "${it.fmt(0)}g " } ?: ""}" +
+        "${kcal.fmt(0)}kcal 蛋白${proteinG.fmt()}g 脂肪${fatG.fmt()}g 碳水${carbsG.fmt()}g"
 
 /** 把 yyyy-MM-dd 解析为日期，默认今天 */
 internal fun parseDate(text: String?): LocalDate =
@@ -116,7 +133,8 @@ class AddFoodTool(private val dao: FoodDao) : AiTool {
     override val parameters = objectSchema(listOf("items"), "items" to arrayProp("食物列表", FOOD_ITEM_SCHEMA))
     override val isWrite = true
 
-    private fun build(args: JsonObject): List<FoodEntry> {
+    /** 每条食物和它是否要加入常吃 */
+    private fun items(args: JsonObject): List<Pair<FoodEntry, Boolean>> {
         val items = args.objects("items")
         if (items.isEmpty()) throw ToolException("items 不能为空")
         return items.map { o ->
@@ -133,21 +151,53 @@ class AddFoodTool(private val dao: FoodDao) : AiTool {
                 fatG = (o.num("fat_g") ?: 0.0).round1(),
                 carbsG = (o.num("carbs_g") ?: 0.0).round1(),
                 source = "ai",
-            )
+            ) to (o.bool("add_to_favorites") == true)
         }
     }
 
     override suspend fun preview(args: JsonObject) =
-        "添加饮食记录：\n" + build(args).joinToString("\n") { it.describe().substringAfter(' ') }
+        "添加饮食记录：\n" + items(args).joinToString("\n") { (e, fav) ->
+            e.describe().substringAfter(' ') + if (fav) "（加入常吃）" else ""
+        }
 
     override suspend fun execute(args: JsonObject): ToolOutcome {
-        val entries = build(args)
+        val parsed = items(args)
+        val entries = parsed.map { it.first }
         val ids = dao.insertAll(entries)
         val total = entries.sumOf { it.kcal }
+        // 加入常吃：同名的覆盖，撤销时恢复原来的那条
+        val favorites = buildJsonArray {
+            parsed.filter { it.second }.forEach { (e, _) ->
+                val existing = dao.favoriteByName(e.name)
+                dao.insertFavorite(
+                    FavoriteFood(
+                        id = existing?.id ?: 0,
+                        name = e.name,
+                        amount = e.amount,
+                        grams = e.grams,
+                        kcal = e.kcal,
+                        proteinG = e.proteinG,
+                        fatG = e.fatG,
+                        carbsG = e.carbsG,
+                        useCount = (existing?.useCount ?: 0) + 1,
+                        lastUsedAt = System.currentTimeMillis(),
+                    ),
+                )
+                add(buildJsonObject {
+                    put("name", e.name)
+                    existing?.let { put("old", it.toJson()) }
+                })
+            }
+        }
+        val favCount = parsed.count { it.second }
         return ToolOutcome(
-            result = "已添加 ${entries.size} 条，id：${ids.joinToString()}",
-            summary = "添加饮食：${entries.joinToString("、") { it.name }}（共 ${total.fmt(0)} kcal）",
-            undoData = buildJsonObject { putJsonArray("ids") { ids.forEach { add(it) } } },
+            result = "已添加 ${entries.size} 条，id：${ids.joinToString()}" + if (favCount > 0) "；$favCount 种已加入常吃" else "",
+            summary = "添加饮食：${entries.joinToString("、") { it.name }}（共 ${total.fmt(0)} kcal）" +
+                if (favCount > 0) "，并加入常吃" else "",
+            undoData = buildJsonObject {
+                putJsonArray("ids") { ids.forEach { add(it) } }
+                put("favorites", favorites)
+            },
         )
     }
 
@@ -156,6 +206,15 @@ class AddFoodTool(private val dao: FoodDao) : AiTool {
             (undoData["ids"] as? kotlinx.serialization.json.JsonArray).orEmpty()
                 .mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.content?.toLongOrNull() }
         )
+        (undoData["favorites"] as? kotlinx.serialization.json.JsonArray).orEmpty().forEach { el ->
+            val o = el as? JsonObject ?: return@forEach
+            val old = o["old"] as? JsonObject
+            if (old != null) {
+                dao.insertFavorite(old.toFavorite())
+            } else {
+                o.str("name")?.let { name -> dao.favoriteByName(name)?.let { dao.deleteFavorite(it.id) } }
+            }
+        }
     }
 }
 
@@ -240,9 +299,80 @@ class ListFavoritesTool(private val dao: FoodDao) : AiTool {
     override suspend fun execute(args: JsonObject): ToolOutcome {
         val list = dao.favorites()
         if (list.isEmpty()) return ToolOutcome("没有收藏的食物")
-        return ToolOutcome(list.joinToString("\n") {
-            "${it.name}${it.amount?.let { a -> "（$a）" } ?: ""} ${it.grams?.fmt(0)?.plus("g") ?: ""} " +
-                "${it.kcal.fmt(0)}kcal 蛋白${it.proteinG.fmt()}g 脂肪${it.fatG.fmt()}g 碳水${it.carbsG.fmt()}g"
-        })
+        return ToolOutcome(list.joinToString("\n") { it.describe() })
+    }
+}
+
+class UpdateFavoriteTool(private val dao: FoodDao) : AiTool {
+    override val name = "update_favorite_food"
+    override val description = "修改一个常吃食物，只传需要修改的字段；id 来自 list_favorite_foods。只改克数、没给营养数值时，营养按克数等比例换算"
+    override val parameters = objectSchema(
+        listOf("id"),
+        "id" to integerProp("常吃食物 id"),
+        "name" to stringProp("名称"),
+        "amount" to stringProp("份量描述"),
+        "grams" to numberProp("克数"),
+        "kcal" to numberProp("热量"),
+        "protein_g" to numberProp("蛋白质 g"),
+        "fat_g" to numberProp("脂肪 g"),
+        "carbs_g" to numberProp("碳水 g"),
+    )
+    override val isWrite = true
+
+    private suspend fun load(args: JsonObject): Pair<FavoriteFood, FavoriteFood> {
+        val old = dao.favorite(args.requireLong("id")) ?: throw ToolException("找不到常吃食物 #${args.long("id")}")
+        val newName = args.str("name")?.trim() ?: old.name
+        if (newName != old.name && dao.favoriteByName(newName) != null) throw ToolException("已经有叫「$newName」的常吃了")
+        val grams = if (args.has("grams")) args.num("grams") else old.grams
+        // 只改了克数：营养按比例换算
+        val nutrientsGiven = listOf("kcal", "protein_g", "fat_g", "carbs_g").any { args.has(it) }
+        val ratio = if (!nutrientsGiven && grams != null && grams > 0 && old.grams != null && old.grams > 0) grams / old.grams else 1.0
+        val new = old.copy(
+            name = newName,
+            amount = if (args.has("amount")) args.str("amount") else old.amount,
+            grams = grams,
+            kcal = (args.num("kcal") ?: old.kcal * ratio).round1(),
+            proteinG = (args.num("protein_g") ?: old.proteinG * ratio).round1(),
+            fatG = (args.num("fat_g") ?: old.fatG * ratio).round1(),
+            carbsG = (args.num("carbs_g") ?: old.carbsG * ratio).round1(),
+        )
+        return old to new
+    }
+
+    override suspend fun preview(args: JsonObject): String {
+        val (old, new) = load(args)
+        return "修改常吃：\n原：${old.describe().substringAfter(' ')}\n新：${new.describe().substringAfter(' ')}"
+    }
+
+    override suspend fun execute(args: JsonObject): ToolOutcome {
+        val (old, new) = load(args)
+        dao.insertFavorite(new)
+        return ToolOutcome("已修改为 ${new.describe()}", "修改常吃：${new.name}", old.toJson())
+    }
+
+    override suspend fun undo(undoData: JsonObject) {
+        dao.insertFavorite(undoData.toFavorite())
+    }
+}
+
+class DeleteFavoriteTool(private val dao: FoodDao) : AiTool {
+    override val name = "delete_favorite_food"
+    override val description = "从常吃里删除一个食物（不影响已有的饮食记录）；id 来自 list_favorite_foods"
+    override val parameters = objectSchema(listOf("id"), "id" to integerProp("常吃食物 id"))
+    override val isWrite = true
+
+    private suspend fun load(args: JsonObject) =
+        dao.favorite(args.requireLong("id")) ?: throw ToolException("找不到常吃食物 #${args.long("id")}")
+
+    override suspend fun preview(args: JsonObject) = "从常吃里删除：${load(args).describe().substringAfter(' ')}"
+
+    override suspend fun execute(args: JsonObject): ToolOutcome {
+        val old = load(args)
+        dao.deleteFavorite(old.id)
+        return ToolOutcome("已删除常吃 ${old.describe()}", "删除常吃：${old.name}", old.toJson())
+    }
+
+    override suspend fun undo(undoData: JsonObject) {
+        dao.insertFavorite(undoData.toFavorite())
     }
 }

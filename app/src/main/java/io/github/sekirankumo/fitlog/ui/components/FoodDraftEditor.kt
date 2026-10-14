@@ -27,6 +27,8 @@ fun FoodDraftEditor(
     draft: FoodDraft,
     onChange: (FoodDraft) -> Unit,
     showFavorite: Boolean = true,
+    /** 是否显示餐次和时间（编辑常吃时不需要） */
+    showMealTime: Boolean = true,
 ) {
     val context = LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -55,7 +57,7 @@ fun FoodDraftEditor(
             NumberField(draft.fatG, { onChange(draft.withNutrients(fatG = it ?: 0.0)) }, "脂肪 g", Modifier.weight(1f))
             NumberField(draft.carbsG, { onChange(draft.withNutrients(carbsG = it ?: 0.0)) }, "碳水 g", Modifier.weight(1f))
         }
-        Row(
+        if (showMealTime) Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,

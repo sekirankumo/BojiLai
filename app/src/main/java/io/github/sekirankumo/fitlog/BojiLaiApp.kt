@@ -15,6 +15,8 @@ import io.github.sekirankumo.fitlog.assistant.tools.GetPlanDayTool
 import io.github.sekirankumo.fitlog.assistant.tools.GetPlanTool
 import io.github.sekirankumo.fitlog.assistant.tools.GetProfileTool
 import io.github.sekirankumo.fitlog.assistant.tools.ListFavoritesTool
+import io.github.sekirankumo.fitlog.assistant.tools.UpdateFavoriteTool
+import io.github.sekirankumo.fitlog.assistant.tools.DeleteFavoriteTool
 import io.github.sekirankumo.fitlog.assistant.tools.ListOperationsTool
 import io.github.sekirankumo.fitlog.assistant.tools.OpenPageTool
 import io.github.sekirankumo.fitlog.assistant.tools.QueryBodyRecordsTool
@@ -122,6 +124,8 @@ class AppContainer(app: Application) {
             UpdateFoodTool(database.foodDao()),
             DeleteFoodTool(database.foodDao()),
             ListFavoritesTool(database.foodDao()),
+            UpdateFavoriteTool(database.foodDao()),
+            DeleteFavoriteTool(database.foodDao()),
             // 训练
             GetPlanTool(plans),
             GetPlanDayTool(plans),

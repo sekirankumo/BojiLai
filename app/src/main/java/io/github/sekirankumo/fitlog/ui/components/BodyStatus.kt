@@ -148,7 +148,7 @@ private fun Metric(label: String, value: String, unit: String, sub: String?, goo
     Column {
         Text(label, style = MaterialTheme.typography.labelMedium, color = c.muted)
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            AnimatedNumber(value, style = MaterialTheme.typography.headlineSmall, color = c.text, fontWeight = FontWeight.Bold)
             Text(" $unit", style = MaterialTheme.typography.labelMedium, color = c.muted, modifier = Modifier.padding(bottom = 4.dp))
         }
         sub?.let {

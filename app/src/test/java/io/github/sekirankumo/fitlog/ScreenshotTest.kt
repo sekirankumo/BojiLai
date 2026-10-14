@@ -11,7 +11,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
-import io.github.sekirankumo.fitlog.background.HealthSync
 import androidx.compose.runtime.CompositionLocalProvider
 import io.github.sekirankumo.fitlog.ui.BojiLaiRoot
 import io.github.sekirankumo.fitlog.ui.components.LocalReduceMotion
@@ -68,7 +67,6 @@ class ScreenshotTest {
     @Before
     fun setUp() {
         container = AppContainer(ApplicationProvider.getApplicationContext())
-        container.healthSync.previewSteps = HealthSync.Steps.Value(8426, listOf("小米运动健康"))
         runBlocking { SampleData.seed(container) }
     }
 
@@ -122,6 +120,7 @@ class ScreenshotTest {
         container.assistant.showPreview(SampleData.chatTable())
     }
     @Test fun settings() = shot("settings", "settings")
+    @Test fun favorites() = shot("favorites", "favorites")
 
     /** 个人信息没填全时，摄入卡片下方提示缺什么 */
     @Test fun todayMissing() = shot("today_missing", "today") {

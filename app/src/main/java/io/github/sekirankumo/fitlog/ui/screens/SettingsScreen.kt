@@ -51,12 +51,22 @@ import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import io.github.sekirankumo.fitlog.AppContainer
-import io.github.sekirankumo.fitlog.background.HealthSync
 import io.github.sekirankumo.fitlog.ui.components.BCard
 import io.github.sekirankumo.fitlog.ui.components.RowItem
 import io.github.sekirankumo.fitlog.ui.theme.Brand
 import io.github.sekirankumo.fitlog.update.UpdateState
 import io.github.sekirankumo.fitlog.util.TimeUtil
+import io.github.sekirankumo.fitlog.background.WorkScheduler
+import android.Manifest
+import android.app.TimePickerDialog
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Switch
+import androidx.core.content.ContextCompat
 import io.github.sekirankumo.fitlog.voice.VoiceModelState
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -65,6 +75,7 @@ class SettingsNav(
     val openAiSettings: () -> Unit,
     val openProfile: () -> Unit,
     val openOperations: () -> Unit,
+    val openFavorites: () -> Unit,
 )
 
 @Composable
@@ -77,7 +88,7 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
     val health = container.healthSync
     var healthStatus by remember { mutableStateOf("检查中…") }
     var healthGranted by remember { mutableStateOf(false) }
-    var stepsInfo by remember { mutableStateOf<String?>(null) }
+    var confirmStopSync by remember { mutableStateOf(false) }
     var dataMessage by remember { mutableStateOf<String?>(null) }
     var confirmImport by remember { mutableStateOf<android.net.Uri?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
@@ -85,26 +96,49 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
     val speech = container.speech
     val voiceState by speech.state.collectAsState()
     var confirmDeleteVoice by remember { mutableStateOf(false) }
+    val profileFlow = remember { container.profile.profile }
+    val reminder = profileFlow.collectAsState(initial = null).value?.reminderMinuteOfDay
+
+    // 训练提醒：打开时才申请通知权限，再选提醒时间
+    fun setReminder(minute: Int?) {
+        container.appScope.launch {
+            container.profile.update { it.copy(reminderMinuteOfDay = minute) }
+            WorkScheduler.scheduleReminder(context.applicationContext, minute)
+        }
+    }
+    fun pickReminderTime() {
+        val m = reminder ?: (19 * 60)
+        TimePickerDialog(context, { _, h, min -> setReminder(h * 60 + min) }, m / 60, m % 60, true).show()
+    }
+    val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            pickReminderTime()
+        } else {
+            Toast.makeText(context, "需要通知权限才能提醒，可以在 系统设置 → 应用 → 薄肌来 → 通知 里打开", Toast.LENGTH_LONG).show()
+        }
+    }
+    fun enableReminder() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            pickReminderTime()
+        }
+    }
 
     LaunchedEffect(refresh) {
         healthStatus = when (health.sdkStatus()) {
             HealthConnectClient.SDK_AVAILABLE -> {
                 healthGranted = health.canReadBody()
                 if (healthGranted) {
-                    "已授权 · 上次同步：${health.lastSync()?.let { TimeUtil.format(it) } ?: "还没有"}"
+                    "已开启 · 上次同步：${health.lastSync()?.let { TimeUtil.format(it) } ?: "还没有"}"
                 } else {
-                    "未授权，点击授权读取体重、体脂和步数"
+                    "未开启，点击授权读取体重和体脂"
                 }
             }
-            HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> "需要更新 Health Connect"
+            HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> "需要先更新 Health Connect"
             else -> "这台手机不支持 Health Connect"
-        }
-        stepsInfo = when (val s = health.todaySteps()) {
-            is HealthSync.Steps.Value -> "今日步数 ${s.count}，来源：${s.sources.joinToString("、").ifEmpty { "未知" }}"
-            HealthSync.Steps.NotGranted -> "步数：没有授权读取步数，点上面的「授权读取」"
-            HealthSync.Steps.NoData -> "步数：Health Connect 里今天没有步数数据。请在小米运动健康里确认已打开「步数」的同步，并在 Health Connect 的应用权限里允许它写入步数"
-            HealthSync.Steps.Unavailable -> null
-            is HealthSync.Steps.Failed -> "步数读取失败：${s.message}"
         }
     }
 
@@ -133,8 +167,26 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
     ) {
         Group("个人")
         BCard(padding = PaddingValues(vertical = 4.dp)) {
-            RowItem("个人信息与目标", subtitle = "身高、目标、营养目标、训练提醒、AI 记住的信息", icon = Icons.Filled.Person, onClick = nav.openProfile, trailing = chevron)
+            RowItem("个人信息与目标", subtitle = "身高、目标、营养目标、AI 记住的信息", icon = Icons.Filled.Person, onClick = nav.openProfile, trailing = chevron)
             Divider()
+            RowItem("常吃食物", subtitle = "修改或删除收藏的常吃食物", icon = Icons.Filled.Star, onClick = nav.openFavorites, trailing = chevron)
+            Divider()
+            RowItem(
+                "训练提醒",
+                subtitle = reminder?.let { "每天 %02d:%02d 提醒，点击修改时间".format(it / 60, it % 60) } ?: "关闭",
+                icon = Icons.Filled.Notifications,
+                onClick = { if (reminder != null) pickReminderTime() else enableReminder() },
+                trailing = {
+                    Switch(
+                        checked = reminder != null,
+                        onCheckedChange = { on -> if (on) enableReminder() else setReminder(null) },
+                    )
+                },
+            )
+        }
+
+        Group("AI 与语音")
+        BCard(padding = PaddingValues(vertical = 4.dp)) {
             RowItem("AI 服务配置", subtitle = "API Key、模型选择、测试连接", icon = Icons.Filled.AutoAwesome, onClick = nav.openAiSettings, trailing = chevron)
             Divider()
             RowItem(
@@ -158,10 +210,10 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
             )
         }
 
-        Group("小米运动健康同步")
+        Group("健康数据同步")
         BCard(padding = PaddingValues(vertical = 4.dp)) {
             RowItem(
-                if (healthGranted) "立即同步" else "授权读取",
+                if (healthGranted) "立即同步" else "开启同步",
                 subtitle = healthStatus,
                 icon = Icons.Filled.Favorite,
                 onClick = {
@@ -177,20 +229,22 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
                 },
                 trailing = chevron,
             )
-            stepsInfo?.let {
-                Divider()
-                Text(it, style = MaterialTheme.typography.bodySmall, color = c.muted, modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp))
-            }
             if (health.isAvailable()) {
                 Divider()
-                TextButton(
-                    onClick = { runCatching { context.startActivity(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS)) } },
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                ) { Text("打开 Health Connect 设置") }
+                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { runCatching { context.startActivity(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS)) } }) {
+                        Text("打开 Health Connect 设置")
+                    }
+                    Spacer(Modifier.weight(1f))
+                    // 已经在同步时可以停止
+                    if (healthGranted) {
+                        TextButton(onClick = { confirmStopSync = true }) { Text("停止同步", color = c.danger) }
+                    }
+                }
             }
         }
         Text(
-            "在小米运动健康里打开 Health Connect 数据共享（一般在 我的 → 设置 → 第三方数据共享），体重秤和手环的数据就会同步过来。打开 App 时会自动同步。",
+            "从安卓系统的 Health Connect（健康连接）读取体重和体脂。小米运动健康、三星健康、体脂秤 App 等，只要在它们的设置里打开 Health Connect 数据共享，数据就能同步过来。开启后每次打开薄肌来会自动同步。",
             style = MaterialTheme.typography.bodySmall,
             color = c.muted,
             modifier = Modifier.padding(horizontal = 4.dp),
@@ -289,6 +343,25 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
                 }
             },
             confirmButton = { TextButton(onClick = { showLicenses = false }) { Text("好") } },
+        )
+    }
+
+    if (confirmStopSync) {
+        AlertDialog(
+            onDismissRequest = { confirmStopSync = false },
+            containerColor = c.surface,
+            title = { Text("停止同步？") },
+            text = { Text("之后不再从 Health Connect 读取体重和体脂。已经同步进来的记录会保留，想删可以在身体页里删。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmStopSync = false
+                    scope.launch {
+                        runCatching { health.revoke() }
+                        refresh++
+                    }
+                }) { Text("停止同步", color = c.danger) }
+            },
+            dismissButton = { TextButton(onClick = { confirmStopSync = false }) { Text("取消") } },
         )
     }
 

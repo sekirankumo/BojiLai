@@ -4,9 +4,7 @@ import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.BodyFatRecord
-import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.WeightRecord
-import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import io.github.sekirankumo.fitlog.data.db.BodyRecord
@@ -17,12 +15,12 @@ import io.github.sekirankumo.fitlog.util.TimeUtil
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Instant
-import java.time.LocalDate
 import kotlin.math.abs
 
 /**
- * 从 Health Connect 读取体重、体脂和步数。小米运动健康等 App 把数据写入 Health Connect 后，这里就能同步过来。
- * Health Connect 只允许 App 在前台时读取，所以在打开 App 时同步。
+ * 从安卓的 Health Connect（健康连接）读取体重和体脂。小米运动健康、三星健康、体脂秤 App 等
+ * 只要把数据写进 Health Connect，这里就能同步过来。
+ * 只有用户在设置里点「开启同步」才会申请授权；Health Connect 只允许 App 在前台时读取，所以在打开 App 时同步。
  */
 class HealthSync(
     private val context: Context,
@@ -34,14 +32,10 @@ class HealthSync(
     val permissions = setOf(
         HealthPermission.getReadPermission(WeightRecord::class),
         HealthPermission.getReadPermission(BodyFatRecord::class),
-        HealthPermission.getReadPermission(StepsRecord::class),
     )
 
     fun sdkStatus(): Int =
         runCatching { HealthConnectClient.getSdkStatus(context) }.getOrDefault(HealthConnectClient.SDK_UNAVAILABLE)
-
-    /** 截图测试用：固定返回的步数 */
-    internal var previewSteps: Steps? = null
 
     fun isAvailable(): Boolean = sdkStatus() == HealthConnectClient.SDK_AVAILABLE
 
@@ -108,51 +102,9 @@ class HealthSync(
         added
     }
 
-    /** 今天步数的读取结果，带上读不到的原因，方便排查 */
-    sealed interface Steps {
-        data object Unavailable : Steps
-        data object NotGranted : Steps
-        /** Health Connect 里今天没有任何 App 写入步数 */
-        data object NoData : Steps
-        data class Value(val count: Long, val sources: List<String>) : Steps
-        data class Failed(val message: String) : Steps
-    }
-
-    suspend fun todaySteps(): Steps {
-        previewSteps?.let { return it }
-        if (!isAvailable()) return Steps.Unavailable
-        return try {
-            if (HealthPermission.getReadPermission(StepsRecord::class) !in client.permissionController.getGrantedPermissions()) {
-                return Steps.NotGranted
-            }
-            val start = TimeUtil.toEpoch(LocalDate.now().atStartOfDay())
-            val response = client.aggregate(
-                AggregateRequest(
-                    metrics = setOf(StepsRecord.COUNT_TOTAL),
-                    timeRangeFilter = TimeRangeFilter.between(Instant.ofEpochMilli(start), Instant.now()),
-                )
-            )
-            val count = response[StepsRecord.COUNT_TOTAL]
-            val sources = response.dataOrigins.map { appLabel(it.packageName) }
-            if (count == null) Steps.NoData else Steps.Value(count, sources)
-        } catch (e: Exception) {
-            Steps.Failed(e.message ?: e.toString())
-        }
-    }
-
-    /** 常见健康 App 的中文名 */
-    private fun appLabel(pkg: String): String = when (pkg) {
-        "com.mi.health" -> "小米运动健康"
-        "com.xiaomi.wearable" -> "小米穿戴"
-        "com.xiaomi.hm.health" -> "Zepp Life"
-        "com.huami.watch.hmwatchmanager" -> "Zepp"
-        "com.google.android.apps.fitness" -> "Google Fit"
-        "com.samsung.android.shealth" -> "三星健康"
-        "com.google.android.apps.healthdata", "com.android.healthconnect.controller" -> "手机自带计步"
-        else -> runCatching {
-            val pm = context.packageManager
-            pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
-        }.getOrDefault(pkg)
+    /** 停止同步：撤销本 App 在 Health Connect 的全部授权，已经同步进来的记录保留 */
+    suspend fun revoke() {
+        if (isAvailable()) client.permissionController.revokeAllPermissions()
     }
 
     private companion object {

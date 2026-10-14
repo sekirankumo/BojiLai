@@ -1,5 +1,13 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import io.github.sekirankumo.fitlog.ui.components.Motion
+import io.github.sekirankumo.fitlog.ui.components.pressScale
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -152,7 +160,11 @@ fun TrainingScreen(container: AppContainer, nav: TrainingNav) {
                 )
             }
         }
-        item { DayDetail(container, selected, day, lastWeights, nav) }
+        item {
+            Box(Modifier.animateContentSize(tween(Motion.LONG, easing = Motion.Emphasized))) {
+                DayDetail(container, selected, day, lastWeights, nav)
+            }
+        }
     }
 }
 
@@ -418,10 +430,19 @@ private fun DayDetail(
 @Composable
 private fun SetChip(index: Int, set: PlanSet, onClick: () -> Unit, onLongClick: () -> Unit) {
     val c = Brand.colors
+    val interaction = remember { MutableInteractionSource() }
+    val color by animateColorAsState(if (set.done) c.brand else c.surface2, tween(Motion.MEDIUM), label = "set")
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = if (set.done) c.brand else c.surface2,
-        modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        color = color,
+        modifier = Modifier
+            .pressScale(interaction, 0.94f)
+            .combinedClickable(
+                interactionSource = interaction,
+                indication = LocalIndication.current,
+                onClick = onClick,
+                onLongClick = onLongClick,
+            ),
     ) {
         Column(
             Modifier.padding(horizontal = 12.dp, vertical = 7.dp),

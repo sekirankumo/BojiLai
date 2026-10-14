@@ -1,5 +1,8 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import io.github.sekirankumo.fitlog.ui.components.Motion
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.compose.foundation.clickable
@@ -85,7 +88,7 @@ private fun BodyRecord.value(metric: Metric) = when (metric) {
 private val SOURCE_LABELS = mapOf(
     "manual" to "手动",
     "ai" to "AI",
-    "health_connect" to "小米同步",
+    "health_connect" to "健康数据同步",
     "scale" to "体重秤",
 )
 
@@ -165,12 +168,15 @@ fun BodyScreen(container: AppContainer) {
                     EmptyState(
                         Icons.Filled.MonitorWeight,
                         "还没有身体数据",
-                        "点「记录」手动添加，对 AI 说「今天体重 70 公斤」，或者在设置里打开小米运动健康同步。",
+                        "点「记录」手动添加，对 AI 说「今天体重 70 公斤」，或者在设置里开启健康数据同步。",
                     )
                 }
             } else {
                 item {
-                    BCard(padding = PaddingValues(vertical = 4.dp)) {
+                    BCard(
+                        Modifier.animateContentSize(tween(Motion.LONG, easing = Motion.Emphasized)),
+                        padding = PaddingValues(vertical = 4.dp),
+                    ) {
                         records.forEachIndexed { i, r ->
                             if (i > 0) HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = c.line)
                             Row(
