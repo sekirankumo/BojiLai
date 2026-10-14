@@ -182,7 +182,6 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
     SideEffect { if (currentTab != null) lastTab[0] = currentTab }
 
     val reduceMotion = LocalReduceMotion.current
-    }
 
     LaunchedEffect(Unit) {
         if (openRoute == null) return@LaunchedEffect
