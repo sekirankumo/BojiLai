@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import io.github.sekirankumo.fitlog.ui.components.itemMotion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -110,7 +111,7 @@ fun FavoritesScreen(container: AppContainer) {
                 SwipeToDismissBox(
                     state = dismiss,
                     enableDismissFromStartToEnd = false,
-                    modifier = Modifier.animateItem(),
+                    modifier = itemMotion(),
                     backgroundContent = {
                         Box(
                             Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).background(c.dangerSoft).padding(end = 24.dp),

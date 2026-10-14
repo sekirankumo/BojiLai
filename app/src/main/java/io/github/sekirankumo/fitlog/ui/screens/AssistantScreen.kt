@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import io.github.sekirankumo.fitlog.ui.components.itemMotion
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import io.github.sekirankumo.fitlog.ui.components.Motion
@@ -210,7 +211,7 @@ fun AssistantScreen(engine: AssistantEngine) {
                 item { Welcome { input = it } }
             }
             items(items, key = { it.id }) { item ->
-                Box(Modifier.animateItem()) {
+                Box(itemMotion()) {
                     when (item) {
                         is ChatItem.User -> UserMessage(item) { index -> viewer = item.images to index }
                         is ChatItem.Assistant -> AssistantBubble(item.text)
@@ -224,7 +225,7 @@ fun AssistantScreen(engine: AssistantEngine) {
                 item(key = "thinking") {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.animateItem().padding(start = 6.dp, top = 4.dp),
+                        modifier = itemMotion().padding(start = 6.dp, top = 4.dp),
                     ) {
                         TypingDots(c.brand)
                         Text("  ${status ?: "正在思考…"}", style = MaterialTheme.typography.bodySmall, color = c.muted)

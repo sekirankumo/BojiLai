@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import io.github.sekirankumo.fitlog.ui.components.itemMotion
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -86,7 +87,9 @@ fun DietScreen(container: AppContainer, completeProfile: (List<String>) -> Unit,
     var dayEpoch by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
     val day = LocalDate.ofEpochDay(dayEpoch)
     val entriesFlow = remember(dayEpoch) { container.diet.observeDay(day) }
-    val entries by entriesFlow.collectAsState(initial = emptyList())
+    // 还在从数据库读取时为 null：这时不显示「还没有记录」，免得每次打开都闪一下
+    val loadedEntries by entriesFlow.collectAsState(initial = null)
+    val entries = loadedEntries.orEmpty()
     val targets by container.profile.targets.collectAsState(initial = null)
     var editing by remember { mutableStateOf<FoodEntry?>(null) }
 
@@ -123,12 +126,13 @@ fun DietScreen(container: AppContainer, completeProfile: (List<String>) -> Unit,
                 }
             }
         }
-        if (entries.isEmpty()) {
-            item {
+        if (loadedEntries != null && entries.isEmpty()) {
+            item(key = "empty") {
                 EmptyState(
                     Icons.Filled.Restaurant,
                     "这天还没有记录",
                     "拍一张照片或者说一句「中午吃了一碗牛肉面」，AI 会帮你拆分并估算营养。",
+                    modifier = itemMotion(),
                 )
             }
         }
@@ -137,7 +141,7 @@ fun DietScreen(container: AppContainer, completeProfile: (List<String>) -> Unit,
             if (items.isNotEmpty()) {
                 item(key = "meal_${meal.key}") {
                     BCard(
-                        Modifier.animateItem().animateContentSize(tween(Motion.LONG, easing = Motion.Emphasized)),
+                        itemMotion().animateContentSize(tween(Motion.LONG, easing = Motion.Emphasized)),
                         padding = PaddingValues(vertical = 8.dp),
                     ) {
                         Row(

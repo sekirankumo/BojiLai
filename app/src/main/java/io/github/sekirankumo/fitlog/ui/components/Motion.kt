@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -65,6 +66,13 @@ fun animatedValue(target: Float, label: String): Float {
     val v by animateFloatAsState(target, if (reduce) snap() else Motion.value(), label = label)
     return v
 }
+
+/**
+ * 列表项出现、消失、换位置时的动画（淡入淡出 + 位移）。
+ * 截图测试（LocalReduceMotion）里关掉，保证截到的是最终画面。
+ */
+@Composable
+fun LazyItemScope.itemMotion(): Modifier = if (LocalReduceMotion.current) Modifier else Modifier.animateItem()
 
 /** 按下时轻微缩小、松手弹回，配合可点击控件的 interactionSource 使用 */
 @Composable

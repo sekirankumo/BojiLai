@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import io.github.sekirankumo.fitlog.ui.components.itemMotion
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -295,7 +296,7 @@ fun AddFoodScreen(
                 item { SectionHeader("确认一下（${drafts.size} 项）") }
             }
             items(drafts, key = { it.key }) { d ->
-                BCard(Modifier.animateItem()) {
+                BCard(itemMotion()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             d.name.ifBlank { "新食物" },
