@@ -21,7 +21,7 @@ import kotlin.math.pow
 
 /**
  * 人体肌肉图。轮廓数据来自 MuscleMap（MIT 许可，github.com/melihcolpan/MuscleMap），
- * 由 tools/build_musclemap.py 转换成 assets/musclemap/*.json。
+ * 由 tools/build_musclemap.py 转换成 assets/musclemap 下的 JSON 文件。
  */
 enum class BodyView(val asset: String) {
     MaleFront("musclemap/male_front.json"),
