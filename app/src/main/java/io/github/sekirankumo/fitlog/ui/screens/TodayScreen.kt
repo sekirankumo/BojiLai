@@ -55,6 +55,8 @@ class TodayNav(
     val openTraining: () -> Unit,
     val openBody: () -> Unit,
     val openDiet: () -> Unit,
+    /** 补全个人信息；只差体重记录时去身体页 */
+    val completeProfile: (missing: List<String>) -> Unit,
 )
 
 /** 今日：摄入、训练（热力图 + 今日安排）、身体状态（肌肉图 + 体重体脂） */
@@ -94,7 +96,7 @@ fun TodayScreen(container: AppContainer, nav: TodayNav) {
             }
         }
 
-        item { NutritionSummary(DayTotals.of(food), targets, onClick = nav.openDiet) }
+        item { NutritionSummary(DayTotals.of(food), targets, onClick = nav.openDiet, onCompleteProfile = nav.completeProfile) }
 
         item { TrainingCard(container, plan, training, nav.openTraining) }
 

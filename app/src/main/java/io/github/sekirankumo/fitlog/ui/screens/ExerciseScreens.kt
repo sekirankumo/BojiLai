@@ -2,13 +2,9 @@ package io.github.sekirankumo.fitlog.ui.screens
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,7 +45,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,10 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -72,6 +64,7 @@ import io.github.sekirankumo.fitlog.data.exercise.Exercise
 import io.github.sekirankumo.fitlog.data.exercise.ExerciseRepository
 import io.github.sekirankumo.fitlog.data.exercise.MUSCLE_GROUPS
 import io.github.sekirankumo.fitlog.ui.components.AssetImage
+import io.github.sekirankumo.fitlog.ui.components.Zoomable
 import io.github.sekirankumo.fitlog.ui.components.BCard
 import io.github.sekirankumo.fitlog.ui.components.Pill
 import io.github.sekirankumo.fitlog.ui.theme.Brand
@@ -291,38 +284,9 @@ fun ImageViewer(images: List<String>, start: Int, onClose: () -> Unit) {
 }
 
 @Composable
-@OptIn(ExperimentalFoundationApi::class)
 private fun ZoomableAsset(path: String) {
-    var scale by remember { mutableFloatStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
-    val state = rememberTransformableState { zoom, pan, _ ->
-        scale = (scale * zoom).coerceIn(1f, 5f)
-        offset = if (scale == 1f) Offset.Zero else offset + pan
-    }
-    Box(
-        Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTapGestures(onDoubleTap = {
-                    if (scale > 1f) {
-                        scale = 1f
-                        offset = Offset.Zero
-                    } else {
-                        scale = 2.5f
-                    }
-                })
-            }
-            // 未放大时不拦截手势，让左右滑动切换图片
-            .transformable(state, lockRotationOnZoomPan = true, enabled = true, canPan = { scale > 1f }),
-        contentAlignment = Alignment.Center,
-    ) {
-        AssetImage(
-            path,
-            Modifier
-                .fillMaxWidth()
-                .graphicsLayer(scaleX = scale, scaleY = scale, translationX = offset.x, translationY = offset.y),
-            contentScale = ContentScale.Fit,
-        )
+    Zoomable { zoom ->
+        AssetImage(path, Modifier.fillMaxWidth().then(zoom), contentScale = ContentScale.Fit)
     }
 }
 

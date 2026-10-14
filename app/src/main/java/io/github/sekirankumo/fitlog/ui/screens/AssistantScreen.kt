@@ -1,5 +1,36 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
+import coil.compose.AsyncImage
+import io.github.sekirankumo.fitlog.assistant.ChatImage
+import io.github.sekirankumo.fitlog.ui.components.MarkdownBlocks
+import io.github.sekirankumo.fitlog.ui.components.MdBlock
+import io.github.sekirankumo.fitlog.ui.components.PhotoViewer
+import io.github.sekirankumo.fitlog.ui.components.parseMarkdown
+import io.github.sekirankumo.fitlog.util.ImageUtil
+import kotlinx.coroutines.launch
+import java.io.File
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -75,7 +106,48 @@ fun AssistantScreen(engine: AssistantEngine) {
     val busy by engine.busy.collectAsState()
     var input by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
-    val speech = rememberSpeechInput("请说") { said -> input = if (input.isBlank()) said else "$input $said" }
+    val speech = rememberSpeechInput("请说") { said -> input = if (input.isBlank()) said else "$input，$said" }
+    val status by engine.status.collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val attachments = remember { mutableStateListOf<Attachment>() }
+    var viewer by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
+    var attachMenu by remember { mutableStateOf(false) }
+
+    fun attach(uri: Uri) {
+        if (attachments.size >= MAX_IMAGES) return
+        attachments += Attachment(uri, null)
+        scope.launch {
+            val photo = runCatching { ImageUtil.loadFoodPhoto(context, uri, maxSide = 1280) }.getOrNull()
+            val i = attachments.indexOfFirst { it.uri == uri && it.image == null }
+            if (i < 0) return@launch
+            if (photo == null) {
+                attachments.removeAt(i)
+                Toast.makeText(context, "有一张图片无法读取", Toast.LENGTH_SHORT).show()
+            } else {
+                attachments[i] = Attachment(uri, ChatImage(uri.toString(), photo.dataUrl))
+            }
+        }
+    }
+
+    var pendingCameraUri by rememberSaveable { mutableStateOf<String?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val uri = pendingCameraUri?.let(Uri::parse)
+        if (ok && uri != null) attach(uri)
+        pendingCameraUri = null
+    }
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAX_IMAGES)) { uris ->
+        val room = MAX_IMAGES - attachments.size
+        uris.take(room).forEach { attach(it) }
+        if (uris.size > room) Toast.makeText(context, "一次最多发 $MAX_IMAGES 张图片", Toast.LENGTH_SHORT).show()
+    }
+    fun takePhoto() {
+        val dir = File(context.cacheDir, "photos").apply { mkdirs() }
+        val file = File(dir, "chat_${System.currentTimeMillis()}.jpg")
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        pendingCameraUri = uri.toString()
+        cameraLauncher.launch(uri)
+    }
 
     // 从其他页面带过来的预填内容
     val prefill by engine.prefill.collectAsState()
@@ -103,8 +175,8 @@ fun AssistantScreen(engine: AssistantEngine) {
             }
             items(items, key = { it.id }) { item ->
                 when (item) {
-                    is ChatItem.User -> Bubble(item.text, mine = true)
-                    is ChatItem.Assistant -> Bubble(item.text, mine = false)
+                    is ChatItem.User -> UserMessage(item) { index -> viewer = item.images to index }
+                    is ChatItem.Assistant -> AssistantBubble(item.text)
                     is ChatItem.Action -> ActionCard(item, onUndo = { engine.undo(item) })
                     is ChatItem.Pending -> PendingCard(item, onDecide = engine::decide)
                     is ChatItem.Error -> ErrorCard(item.message)
@@ -114,7 +186,7 @@ fun AssistantScreen(engine: AssistantEngine) {
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
                         CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                        Text("  正在思考…", style = MaterialTheme.typography.bodySmall, color = c.muted)
+                        Text("  ${status ?: "正在思考…"}", style = MaterialTheme.typography.bodySmall, color = c.muted)
                     }
                 }
             }
@@ -123,12 +195,63 @@ fun AssistantScreen(engine: AssistantEngine) {
         Surface(color = c.surface) {
             Column {
                 HorizontalDivider(color = c.line)
+                if (attachments.isNotEmpty()) {
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, top = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        attachments.forEach { a ->
+                            Box {
+                                AsyncImage(
+                                    model = a.uri,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)).background(c.surface2),
+                                )
+                                if (a.image == null) {
+                                    CircularProgressIndicator(Modifier.size(20.dp).align(Alignment.Center), strokeWidth = 2.dp)
+                                }
+                                Surface(
+                                    onClick = { attachments.remove(a) },
+                                    shape = CircleShape,
+                                    color = c.text.copy(alpha = 0.6f),
+                                    modifier = Modifier.align(Alignment.TopEnd).padding(3.dp).size(20.dp),
+                                ) {
+                                    Icon(Icons.Filled.Close, contentDescription = "移除", tint = c.surface, modifier = Modifier.padding(3.dp))
+                                }
+                            }
+                        }
+                    }
+                }
                 Row(
                     Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Surface(shape = RoundedCornerShape(24.dp), color = c.surface2, modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box {
+                                IconButton(onClick = { attachMenu = true }, enabled = !busy && attachments.size < MAX_IMAGES) {
+                                    Icon(Icons.Filled.AddPhotoAlternate, contentDescription = "发图片", tint = c.brand)
+                                }
+                                DropdownMenu(expanded = attachMenu, onDismissRequest = { attachMenu = false }, containerColor = c.surface) {
+                                    DropdownMenuItem(
+                                        text = { Text("拍照") },
+                                        leadingIcon = { Icon(Icons.Filled.CameraAlt, contentDescription = null) },
+                                        onClick = {
+                                            attachMenu = false
+                                            takePhoto()
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("从相册选") },
+                                        leadingIcon = { Icon(Icons.Filled.PhotoLibrary, contentDescription = null) },
+                                        onClick = {
+                                            attachMenu = false
+                                            galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                        },
+                                    )
+                                }
+                            }
                             IconButton(onClick = speech, enabled = !busy) {
                                 Icon(Icons.Filled.Mic, contentDescription = "语音输入", tint = c.brand)
                             }
@@ -136,7 +259,7 @@ fun AssistantScreen(engine: AssistantEngine) {
                                 value = input,
                                 onValueChange = { input = it },
                                 modifier = Modifier.weight(1f),
-                                placeholder = { Text("说点什么，或点麦克风") },
+                                placeholder = { Text(if (attachments.isEmpty()) "说点什么" else "说说这张图") },
                                 maxLines = 4,
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color.Transparent,
@@ -148,11 +271,13 @@ fun AssistantScreen(engine: AssistantEngine) {
                         }
                     }
                     Spacer(Modifier.width(8.dp))
-                    val canSend = !busy && input.isNotBlank()
+                    val imagesReady = attachments.all { it.image != null }
+                    val canSend = !busy && imagesReady && (input.isNotBlank() || attachments.isNotEmpty())
                     Surface(
                         onClick = {
-                            engine.send(input)
+                            engine.send(input, attachments.mapNotNull { it.image })
                             input = ""
+                            attachments.clear()
                         },
                         enabled = canSend,
                         shape = CircleShape,
@@ -172,7 +297,16 @@ fun AssistantScreen(engine: AssistantEngine) {
             }
         }
     }
+
+    viewer?.let { (images, index) ->
+        PhotoViewer(images.map(Uri::parse), index) { viewer = null }
+    }
 }
+
+private const val MAX_IMAGES = 4
+
+/** 输入框上方待发送的图片；image 为空表示还在压缩 */
+private data class Attachment(val uri: Uri, val image: ChatImage?)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -206,28 +340,62 @@ private fun Welcome(onPick: (String) -> Unit) {
     }
 }
 
+/** 用户发的消息：图片在上，文字气泡在下，都靠右 */
 @Composable
-private fun Bubble(text: String, mine: Boolean) {
+private fun UserMessage(item: ChatItem.User, onOpenImage: (Int) -> Unit) {
     val c = Brand.colors
-    Box(Modifier.fillMaxWidth(), contentAlignment = if (mine) Alignment.CenterEnd else Alignment.CenterStart) {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (item.images.isNotEmpty()) {
+            val size = if (item.images.size == 1) 168.dp else 96.dp
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                item.images.forEachIndexed { i, uri ->
+                    AsyncImage(
+                        model = Uri.parse(uri),
+                        contentDescription = "图片 ${i + 1}",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(size)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(c.surface2)
+                            .clickable { onOpenImage(i) },
+                    )
+                }
+            }
+        }
+        if (item.text.isNotEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 18.dp, bottomEnd = 4.dp),
+                color = c.brand,
+                modifier = Modifier.widthIn(max = 300.dp),
+            ) {
+                SelectionContainer {
+                    Text(
+                        item.text,
+                        color = c.onBrand,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** AI 的回复：按 Markdown 排版；有表格或代码时气泡占满宽度 */
+@Composable
+private fun AssistantBubble(text: String) {
+    val c = Brand.colors
+    val blocks = remember(text) { parseMarkdown(text) }
+    val wide = blocks.any { it is MdBlock.Table || it is MdBlock.Code }
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
         Surface(
-            shape = RoundedCornerShape(
-                topStart = 18.dp,
-                topEnd = 18.dp,
-                bottomStart = if (mine) 18.dp else 4.dp,
-                bottomEnd = if (mine) 4.dp else 18.dp,
-            ),
-            color = if (mine) c.brand else c.surface,
-            border = if (mine) null else androidx.compose.foundation.BorderStroke(1.dp, c.line),
-            modifier = Modifier.widthIn(max = 300.dp),
+            shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 4.dp, bottomEnd = 18.dp),
+            color = c.surface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, c.line),
+            modifier = if (wide) Modifier.fillMaxWidth() else Modifier.widthIn(max = 320.dp),
         ) {
             SelectionContainer {
-                Text(
-                    text,
-                    color = if (mine) c.onBrand else c.text,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                )
+                MarkdownBlocks(blocks, Modifier.padding(horizontal = 14.dp, vertical = 10.dp))
             }
         }
     }

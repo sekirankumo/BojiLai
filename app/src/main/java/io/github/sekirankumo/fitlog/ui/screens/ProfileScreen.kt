@@ -88,7 +88,7 @@ fun ProfileScreen(container: AppContainer, onDone: () -> Unit) {
                 Text("每日营养目标", style = MaterialTheme.typography.titleSmall)
                 Text(
                     "${preview.kcal} kcal · 蛋白 ${preview.proteinG}g · 脂肪 ${preview.fatG}g · 碳水 ${preview.carbsG}g" +
-                        if (preview.computed) "" else "\n（资料不全，暂用默认值）",
+                        if (preview.computed) "" else "\n（还缺${preview.missing.joinToString("、")}，暂用默认值）",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

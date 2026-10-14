@@ -16,3 +16,5 @@ keystore.properties
 /dist/
 /app/screenshots/
 /.claude/
+# 语音识别库，由 tools/fetch_sherpa.sh 下载
+/app/libs/*.aar

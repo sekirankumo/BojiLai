@@ -7,8 +7,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,6 +35,8 @@ fun NutritionSummary(
     modifier: Modifier = Modifier,
     title: String = "今日摄入",
     onClick: (() -> Unit)? = null,
+    /** 点「去填写」，参数是缺少的资料 */
+    onCompleteProfile: ((missing: List<String>) -> Unit)? = null,
 ) {
     val c = Brand.colors
     val target = targets?.kcal
@@ -78,13 +86,29 @@ fun NutritionSummary(
             MacroProgress("脂肪", totals.fatG, targets?.fatG, c.fat, Modifier.weight(1f))
             MacroProgress("碳水", totals.carbsG, targets?.carbsG, c.carbs, Modifier.weight(1f))
         }
-        if (targets != null && !targets.computed) {
+        // 资料齐全（或热量、蛋白质都手动指定了）就不提示
+        if (targets != null && targets.needsProfile) {
             Spacer(Modifier.height(10.dp))
-            Text(
-                "在 设置 → 个人信息 填写身高、年龄等，目标会更准确",
-                style = MaterialTheme.typography.bodySmall,
-                color = c.muted,
-            )
+            Surface(
+                onClick = { onCompleteProfile?.invoke(targets.missing) },
+                enabled = onCompleteProfile != null,
+                shape = RoundedCornerShape(12.dp),
+                color = c.surface2,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(Modifier.padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "还差${targets.missing.joinToString("、")}，补全后目标会更准确",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = c.muted,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (onCompleteProfile != null) {
+                        Text("去填写", style = MaterialTheme.typography.labelMedium, color = c.brand)
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = c.brand, modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
         }
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -56,6 +57,7 @@ import io.github.sekirankumo.fitlog.ui.components.RowItem
 import io.github.sekirankumo.fitlog.ui.theme.Brand
 import io.github.sekirankumo.fitlog.update.UpdateState
 import io.github.sekirankumo.fitlog.util.TimeUtil
+import io.github.sekirankumo.fitlog.voice.VoiceModelState
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -80,6 +82,9 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
     var confirmImport by remember { mutableStateOf<android.net.Uri?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
     var showLicenses by remember { mutableStateOf(false) }
+    val speech = container.speech
+    val voiceState by speech.state.collectAsState()
+    var confirmDeleteVoice by remember { mutableStateOf(false) }
 
     LaunchedEffect(refresh) {
         healthStatus = when (health.sdkStatus()) {
@@ -131,6 +136,26 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
             RowItem("个人信息与目标", subtitle = "身高、目标、营养目标、训练提醒、AI 记住的信息", icon = Icons.Filled.Person, onClick = nav.openProfile, trailing = chevron)
             Divider()
             RowItem("AI 服务配置", subtitle = "API Key、模型选择、测试连接", icon = Icons.Filled.AutoAwesome, onClick = nav.openAiSettings, trailing = chevron)
+            Divider()
+            RowItem(
+                "离线语音识别",
+                subtitle = when (val s = voiceState) {
+                    VoiceModelState.Ready -> "语音模型已下载（${speech.modelSizeMb}MB），点击可删除"
+                    VoiceModelState.Missing -> "第一次用语音时下载模型（约 ${speech.modelSizeMb}MB），也可以点这里提前下载"
+                    is VoiceModelState.Downloading -> "正在下载 ${(s.progress * 100).toInt()}%，点击取消"
+                    is VoiceModelState.Failed -> "${s.message}。点击重试"
+                    VoiceModelState.Unsupported -> "这台手机不支持，语音输入会使用系统语音识别"
+                },
+                icon = Icons.Filled.Mic,
+                onClick = {
+                    when (voiceState) {
+                        VoiceModelState.Ready -> confirmDeleteVoice = true
+                        is VoiceModelState.Downloading -> speech.cancelDownload()
+                        VoiceModelState.Missing, is VoiceModelState.Failed -> speech.startDownload()
+                        VoiceModelState.Unsupported -> Unit
+                    }
+                },
+            )
         }
 
         Group("小米运动健康同步")
@@ -208,7 +233,7 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
             Divider()
             RowItem(
                 "开源许可",
-                subtitle = "动作示意图、人体肌肉图",
+                subtitle = "动作示意图、人体肌肉图、语音识别",
                 icon = Icons.Filled.Description,
                 onClick = { showLicenses = true },
                 trailing = chevron,
@@ -251,6 +276,12 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(Modifier.height(12.dp))
+                    Text("离线语音识别", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "sherpa-onnx（github.com/k2-fsa/sherpa-onnx）和 Zipformer 中文语音模型，Apache License 2.0。",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(Modifier.height(12.dp))
                     Text("人体肌肉图", style = MaterialTheme.typography.titleSmall)
                     Text("MuscleMap（github.com/melihcolpan/MuscleMap），MIT License：", style = MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(4.dp))
@@ -258,6 +289,22 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
                 }
             },
             confirmButton = { TextButton(onClick = { showLicenses = false }) { Text("好") } },
+        )
+    }
+
+    if (confirmDeleteVoice) {
+        AlertDialog(
+            onDismissRequest = { confirmDeleteVoice = false },
+            containerColor = c.surface,
+            title = { Text("删除语音模型？") },
+            text = { Text("删除后可以腾出约 ${speech.modelSizeMb}MB 空间，下次用语音输入时会重新下载。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDeleteVoice = false
+                    scope.launch { speech.deleteModel() }
+                }) { Text("删除") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDeleteVoice = false }) { Text("取消") } },
         )
     }
 

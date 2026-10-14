@@ -15,6 +15,18 @@ import io.github.sekirankumo.fitlog.background.HealthSync
 import androidx.compose.runtime.CompositionLocalProvider
 import io.github.sekirankumo.fitlog.ui.BojiLaiRoot
 import io.github.sekirankumo.fitlog.ui.components.LocalReduceMotion
+import io.github.sekirankumo.fitlog.ui.components.VoicePanel
+import io.github.sekirankumo.fitlog.ui.theme.Brand
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import io.github.sekirankumo.fitlog.ui.theme.BojiLaiTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
@@ -106,5 +118,38 @@ class ScreenshotTest {
     @Test fun assistant() = shot("assistant", "assistant") {
         container.assistant.showPreview(SampleData.chat())
     }
+    @Test fun assistantTable() = shot("assistant_table", "assistant") {
+        container.assistant.showPreview(SampleData.chatTable())
+    }
     @Test fun settings() = shot("settings", "settings")
+
+    /** 个人信息没填全时，摄入卡片下方提示缺什么 */
+    @Test fun todayMissing() = shot("today_missing", "today") {
+        runBlocking { container.profile.update { it.copy(sex = null, birthYear = null) } }
+    }
+
+    /** 语音输入面板 */
+    @Test fun voice() {
+        compose.setContent {
+            BojiLaiTheme(fontFamily = font) {
+                Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.BottomCenter) {
+                    Surface(shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), color = Brand.colors.surface) {
+                        Box(Modifier.padding(top = 28.dp)) {
+                            VoicePanel(
+                                prompt = "说说吃了什么，比如：中午吃了一碗牛肉面",
+                                partial = "中午吃了一碗牛肉面加了一个卤蛋",
+                                level = 0.5f,
+                                hearing = true,
+                                stopping = false,
+                                onCancel = {},
+                                onFinish = {},
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("screenshots/voice.png")
+    }
 }

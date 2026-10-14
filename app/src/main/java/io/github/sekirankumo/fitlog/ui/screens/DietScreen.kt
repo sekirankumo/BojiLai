@@ -76,7 +76,7 @@ fun Meal.icon(): ImageVector = when (this) {
 }
 
 @Composable
-fun DietScreen(container: AppContainer, openAdd: (LocalDate) -> Unit) {
+fun DietScreen(container: AppContainer, completeProfile: (List<String>) -> Unit, openAdd: (LocalDate) -> Unit) {
     val c = Brand.colors
     var dayEpoch by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
     val day = LocalDate.ofEpochDay(dayEpoch)
@@ -95,6 +95,7 @@ fun DietScreen(container: AppContainer, openAdd: (LocalDate) -> Unit) {
                 DayTotals.of(entries),
                 targets,
                 title = if (day == LocalDate.now()) "今日摄入" else day.format(DateTimeFormatter.ofPattern("M月d日摄入")),
+                onCompleteProfile = completeProfile,
             )
         }
         item {

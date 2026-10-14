@@ -40,7 +40,7 @@ class GetProfileTool(private val profile: ProfileRepository, private val bodyDao
         return ToolOutcome(
             p.describe(bodyDao.latestWeight()?.weightKg) +
                 "\n每日目标：${t.kcal}kcal 蛋白${t.proteinG}g 脂肪${t.fatG}g 碳水${t.carbsG}g" +
-                if (t.computed) "" else "（资料不全，使用默认值）"
+                if (t.computed) "" else "（还缺${t.missing.joinToString("、")}，部分使用默认值）"
         )
     }
 }

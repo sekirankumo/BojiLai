@@ -94,6 +94,9 @@ class AppContainer(app: Application) {
     val backup = BackupService(app, database)
     val healthSync = HealthSync(app, database.bodyRecordDao(), database.kvDao())
 
+    /** 内置离线语音识别 */
+    val speech = io.github.sekirankumo.fitlog.voice.SpeechEngine(app, httpClient)
+
     val updateManager = UpdateManager(app, httpClient).also { um ->
         um.beforeInstall = { backup.autoBackup(force = true) }
     }

@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -70,6 +71,7 @@ import io.github.sekirankumo.fitlog.ui.screens.ProfileScreen
 import io.github.sekirankumo.fitlog.ui.screens.SettingsNav
 import io.github.sekirankumo.fitlog.ui.screens.SettingsScreen
 import io.github.sekirankumo.fitlog.ui.screens.TodayNav
+import io.github.sekirankumo.fitlog.ui.components.LocalSpeechEngine
 import io.github.sekirankumo.fitlog.ui.screens.TodayScreen
 import io.github.sekirankumo.fitlog.ui.screens.TrainingNav
 import io.github.sekirankumo.fitlog.ui.screens.TrainingScreen
@@ -158,120 +160,128 @@ fun BojiLaiRoot(container: AppContainer, openRoute: String? = null, sideEffects:
     }
 
     val colors = Brand.colors
-    Scaffold(
-        containerColor = colors.bg,
-        topBar = {
-            TopAppBar(
-                title = {
-                    if (currentTab == Tab.Today) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            LogoMark()
-                            Text("  薄肌来", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+    // 语音输入用的内置离线识别
+    CompositionLocalProvider(LocalSpeechEngine provides container.speech) {
+        Scaffold(
+            containerColor = colors.bg,
+            topBar = {
+                TopAppBar(
+                    title = {
+                        if (currentTab == Tab.Today) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                LogoMark()
+                                Text("  薄肌来", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                            }
+                        } else {
+                            Text(
+                                TITLES[route] ?: currentTab?.label ?: "",
+                                style = if (currentTab != null) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
+                            )
                         }
-                    } else {
-                        Text(
-                            TITLES[route] ?: currentTab?.label ?: "",
-                            style = if (currentTab != null) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
-                        )
-                    }
-                },
-                navigationIcon = {
-                    if (route != null && currentTab == null) {
-                        IconButton(onClick = { nav.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                    },
+                    navigationIcon = {
+                        if (route != null && currentTab == null) {
+                            IconButton(onClick = { nav.popBackStack() }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                            }
                         }
-                    }
-                },
-                actions = {
-                    if (currentTab != null) {
-                        IconButton(onClick = { nav.navigate(Routes.SETTINGS) }) {
-                            Icon(Icons.Filled.Settings, contentDescription = "设置", tint = colors.muted)
+                    },
+                    actions = {
+                        if (currentTab != null) {
+                            IconButton(onClick = { nav.navigate(Routes.SETTINGS) }) {
+                                Icon(Icons.Filled.Settings, contentDescription = "设置", tint = colors.muted)
+                            }
                         }
-                    }
-                    if (route == Routes.ASSISTANT) {
-                        IconButton(onClick = { container.assistant.clear() }) {
-                            Icon(Icons.Filled.DeleteSweep, contentDescription = "清空对话", tint = colors.muted)
+                        if (route == Routes.ASSISTANT) {
+                            IconButton(onClick = { container.assistant.clear() }) {
+                                Icon(Icons.Filled.DeleteSweep, contentDescription = "清空对话", tint = colors.muted)
+                            }
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.bg, scrolledContainerColor = colors.bg),
-            )
-        },
-        bottomBar = {
-            if (currentTab != null) {
-                BottomBar(
-                    current = currentTab,
-                    onTab = { nav.openTab(it.route) },
-                    onAi = { nav.navigate(Routes.ASSISTANT) },
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.bg, scrolledContainerColor = colors.bg),
                 )
+            },
+            bottomBar = {
+                if (currentTab != null) {
+                    BottomBar(
+                        current = currentTab,
+                        onTab = { nav.openTab(it.route) },
+                        onAi = { nav.navigate(Routes.ASSISTANT) },
+                    )
+                }
+            },
+        ) { padding ->
+            // 营养目标缺资料时的「去填写」：只差体重记录就去身体页，否则去个人信息
+            val completeProfile: (List<String>) -> Unit = { missing ->
+                if (missing == listOf("体重记录")) nav.openTab(Tab.Body.route) else nav.navigate(Routes.PROFILE)
             }
-        },
-    ) { padding ->
-        NavHost(
-            navController = nav,
-            startDestination = Tab.Today.route,
-            modifier = Modifier.padding(padding).consumeWindowInsets(padding),
-        ) {
-            composable(Tab.Today.route) {
-                TodayScreen(
-                    container,
-                    TodayNav(
-                        openTraining = { nav.openTab(Tab.Training.route) },
-                        openBody = { nav.openTab(Tab.Body.route) },
-                        openDiet = { nav.openTab(Tab.Diet.route) },
-                    ),
-                )
+            NavHost(
+                navController = nav,
+                startDestination = Tab.Today.route,
+                modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+            ) {
+                composable(Tab.Today.route) {
+                    TodayScreen(
+                        container,
+                        TodayNav(
+                            openTraining = { nav.openTab(Tab.Training.route) },
+                            openBody = { nav.openTab(Tab.Body.route) },
+                            openDiet = { nav.openTab(Tab.Diet.route) },
+                            completeProfile = completeProfile,
+                        ),
+                    )
+                }
+                composable(Tab.Diet.route) {
+                    DietScreen(container, completeProfile) { day -> nav.navigate(Routes.addFood(day)) }
+                }
+                composable(Tab.Training.route) {
+                    TrainingScreen(
+                        container,
+                        TrainingNav(
+                            openExercise = { nav.navigate(Routes.exercise(it)) },
+                            openLibrary = { nav.navigate(Routes.LIBRARY) },
+                            openGenerate = { nav.navigate(Routes.GENERATE) },
+                            openOperations = { nav.navigate(Routes.OPERATIONS) },
+                            askAi = { askAi(it) },
+                        ),
+                    )
+                }
+                composable(Tab.Body.route) { BodyScreen(container) }
+                composable(Routes.SETTINGS) {
+                    SettingsScreen(
+                        container,
+                        SettingsNav(
+                            openAiSettings = { nav.navigate(Routes.AI_SETTINGS) },
+                            openProfile = { nav.navigate(Routes.PROFILE) },
+                            openOperations = { nav.navigate(Routes.OPERATIONS) },
+                        ),
+                    )
+                }
+                composable(Routes.AI_SETTINGS) { AiSettingsScreen(container) }
+                composable(Routes.PROFILE) { ProfileScreen(container) { nav.popBackStack() } }
+                composable(Routes.OPERATIONS) { OperationsScreen(container) }
+                composable(Routes.ASSISTANT) { AssistantScreen(container.assistant) }
+                composable(
+                    Routes.ADD_FOOD,
+                    arguments = listOf(navArgument("day") { type = NavType.LongType }),
+                ) { entry ->
+                    AddFoodScreen(
+                        container,
+                        day = LocalDate.ofEpochDay(entry.arguments?.getLong("day") ?: LocalDate.now().toEpochDay()),
+                        onDone = { nav.popBackStack() },
+                    )
+                }
+                composable(Routes.LIBRARY) {
+                    ExerciseLibraryScreen(container.exercises) { nav.navigate(Routes.exercise(it)) }
+                }
+                composable(
+                    Routes.EXERCISE,
+                    arguments = listOf(navArgument("id") { type = NavType.StringType }),
+                ) { entry ->
+                    ExerciseDetailScreen(container.exercises[entry.arguments?.getString("id")])
+                }
+                composable(Routes.GENERATE) { GeneratePlanScreen(container) { nav.popBackStack() } }
             }
-            composable(Tab.Diet.route) {
-                DietScreen(container) { day -> nav.navigate(Routes.addFood(day)) }
-            }
-            composable(Tab.Training.route) {
-                TrainingScreen(
-                    container,
-                    TrainingNav(
-                        openExercise = { nav.navigate(Routes.exercise(it)) },
-                        openLibrary = { nav.navigate(Routes.LIBRARY) },
-                        openGenerate = { nav.navigate(Routes.GENERATE) },
-                        openOperations = { nav.navigate(Routes.OPERATIONS) },
-                        askAi = { askAi(it) },
-                    ),
-                )
-            }
-            composable(Tab.Body.route) { BodyScreen(container) }
-            composable(Routes.SETTINGS) {
-                SettingsScreen(
-                    container,
-                    SettingsNav(
-                        openAiSettings = { nav.navigate(Routes.AI_SETTINGS) },
-                        openProfile = { nav.navigate(Routes.PROFILE) },
-                        openOperations = { nav.navigate(Routes.OPERATIONS) },
-                    ),
-                )
-            }
-            composable(Routes.AI_SETTINGS) { AiSettingsScreen(container) }
-            composable(Routes.PROFILE) { ProfileScreen(container) { nav.popBackStack() } }
-            composable(Routes.OPERATIONS) { OperationsScreen(container) }
-            composable(Routes.ASSISTANT) { AssistantScreen(container.assistant) }
-            composable(
-                Routes.ADD_FOOD,
-                arguments = listOf(navArgument("day") { type = NavType.LongType }),
-            ) { entry ->
-                AddFoodScreen(
-                    container,
-                    day = LocalDate.ofEpochDay(entry.arguments?.getLong("day") ?: LocalDate.now().toEpochDay()),
-                    onDone = { nav.popBackStack() },
-                )
-            }
-            composable(Routes.LIBRARY) {
-                ExerciseLibraryScreen(container.exercises) { nav.navigate(Routes.exercise(it)) }
-            }
-            composable(
-                Routes.EXERCISE,
-                arguments = listOf(navArgument("id") { type = NavType.StringType }),
-            ) { entry ->
-                ExerciseDetailScreen(container.exercises[entry.arguments?.getString("id")])
-            }
-            composable(Routes.GENERATE) { GeneratePlanScreen(container) { nav.popBackStack() } }
         }
     }
 }

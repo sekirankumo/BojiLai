@@ -22,6 +22,10 @@ fun signingValue(envKey: String, propKey: String): String? =
 
 val releaseStoreFile = signingValue("KEYSTORE_FILE", "storeFile")
 
+// 离线语音识别库，由 tools/fetch_sherpa.sh 下载（太大，不放进仓库）
+val sherpaAar = file("libs/sherpa-onnx-1.13.8.aar")
+check(sherpaAar.exists()) { "缺少语音识别库，请先运行 tools/fetch_sherpa.sh" }
+
 android {
     // App 已改名「薄肌来」，但包名和 applicationId 保持 fitlog 不变：
     // 改了的话已安装的版本无法覆盖更新，只能卸载重装（会丢数据）
@@ -34,6 +38,9 @@ android {
         targetSdk = 35
         versionCode = ciVersionCode
         versionName = "0.1.$ciVersionCode"
+
+        // 语音识别库只打包 64 位 ARM（几乎所有在用的安卓手机），其他机型改用系统语音识别
+        ndk { abiFilters += "arm64-v8a" }
 
         // 更新信息：GitHub API 的最新发布（github.com 的直接下载地址在部分网络下会超时）
         buildConfigField(
@@ -81,6 +88,10 @@ android {
         compose = true
         buildConfig = true
     }
+    packaging {
+        // 压缩 so 文件，安装包和每次更新的下载量都小一半
+        jniLibs.useLegacyPackaging = true
+    }
 }
 
 ksp {
@@ -110,6 +121,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.health.connect)
+    implementation(files(sherpaAar))
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 

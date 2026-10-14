@@ -34,6 +34,9 @@ jobs:
         with:
           gradle-version: 8.11.1
 
+      - name: Download sherpa-onnx
+        run: bash tools/fetch_sherpa.sh
+
       - name: Decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}

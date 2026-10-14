@@ -65,13 +65,26 @@ data class NutritionTargets(
     val carbsG: Int,
     /** 是否根据身体数据自动算出（false 表示资料不全，用的是默认值） */
     val computed: Boolean,
+    /** 计算目标还缺哪些资料，如「性别」「体重记录」 */
+    val missing: List<String> = emptyList(),
+    /** 热量和蛋白质都手动指定了，不依赖身体数据 */
+    val manual: Boolean = false,
 ) {
+    /** 需要提示用户补全资料 */
+    val needsProfile: Boolean get() = !computed && !manual
+
     companion object {
         /** Mifflin-St Jeor 估算基础代谢，乘活动系数，再按目标增减 */
         fun from(profile: UserProfile, weightKg: Double?): NutritionTargets {
             val age = profile.age()
             val height = profile.heightCm
-            val computed = weightKg != null && age != null && height != null && profile.sex != null
+            val missing = buildList<String> {
+                if (profile.sex == null) add("性别")
+                if (age == null) add("出生年份")
+                if (height == null) add("身高")
+                if (weightKg == null) add("体重记录")
+            }
+            val computed = missing.isEmpty()
             val tdee = if (computed) {
                 val bmr = 10 * weightKg!! + 6.25 * height!! - 5 * age!! + if (profile.sex == "male") 5 else -161
                 bmr * UserProfile.activityFactor(profile.activityLevel)
@@ -87,7 +100,8 @@ data class NutritionTargets(
                 ?: ((weightKg ?: 65.0) * if (profile.goal == "maintain") 1.4 else 1.8).roundToInt()
             val fat = (kcal * 0.27 / 9).roundToInt()
             val carbs = ((kcal - protein * 4 - fat * 9) / 4.0).roundToInt().coerceAtLeast(0)
-            return NutritionTargets(kcal, protein, fat, carbs, computed)
+            val manual = profile.kcalTargetOverride != null && profile.proteinTargetOverride != null
+            return NutritionTargets(kcal, protein, fat, carbs, computed, missing, manual)
         }
     }
 }
