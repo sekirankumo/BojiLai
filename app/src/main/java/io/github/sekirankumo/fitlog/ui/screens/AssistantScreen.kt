@@ -86,7 +86,11 @@ import androidx.compose.ui.unit.dp
 import io.github.sekirankumo.fitlog.assistant.AssistantEngine
 import io.github.sekirankumo.fitlog.assistant.ChatItem
 import io.github.sekirankumo.fitlog.ui.components.IconBadge
-import io.github.sekirankumo.fitlog.ui.components.rememberSpeechInput
+import io.github.sekirankumo.fitlog.ui.components.VoiceWave
+import io.github.sekirankumo.fitlog.ui.components.rememberDictation
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.material.icons.filled.Stop
 import io.github.sekirankumo.fitlog.ui.theme.Brand
 
 private val SUGGESTIONS = listOf(
@@ -106,13 +110,40 @@ fun AssistantScreen(engine: AssistantEngine) {
     val busy by engine.busy.collectAsState()
     var input by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
-    val speech = rememberSpeechInput("请说") { said -> input = if (input.isBlank()) said else "$input，$said" }
     val status by engine.status.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val attachments = remember { mutableStateListOf<Attachment>() }
     var viewer by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
     var attachMenu by remember { mutableStateOf(false) }
+
+    fun send() {
+        engine.send(input, attachments.mapNotNull { it.image })
+        input = ""
+        attachments.clear()
+    }
+
+    // 语音听写：说的话实时接在输入框原有文字后面；手动改了文字就不再覆盖
+    var dictationBase by remember { mutableStateOf<String?>(null) }
+    var sendAfterDictation by remember { mutableStateOf(false) }
+    val dictation = rememberDictation(
+        onStart = { dictationBase = input.trimEnd() },
+        onText = { said -> dictationBase?.let { base -> input = appendDictation(base, said) } },
+        onFinished = {
+            dictationBase = null
+            if (sendAfterDictation) {
+                sendAfterDictation = false
+                if (!engine.busy.value && (input.isNotBlank() || attachments.isNotEmpty())) send()
+            }
+        },
+    )
+    // 听写时点输入框：停止听写，方便直接修改
+    val fieldInteraction = remember { MutableInteractionSource() }
+    LaunchedEffect(fieldInteraction) {
+        fieldInteraction.interactions.collect {
+            if (it is PressInteraction.Press && dictation.active) dictation.stop()
+        }
+    }
 
     fun attach(uri: Uri) {
         if (attachments.size >= MAX_IMAGES) return
@@ -195,6 +226,21 @@ fun AssistantScreen(engine: AssistantEngine) {
         Surface(color = c.surface) {
             Column {
                 HorizontalDivider(color = c.line)
+                if (dictation.active) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(8.dp).background(c.danger, CircleShape))
+                        Text(
+                            if (dictation.ready) "  正在听" else "  正在准备…",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = c.muted,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        VoiceWave(dictation.levels, c.brand, Modifier.weight(1f).height(26.dp))
+                    }
+                }
                 if (attachments.isNotEmpty()) {
                     Row(
                         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 12.dp, end = 12.dp, top = 10.dp),
@@ -252,14 +298,38 @@ fun AssistantScreen(engine: AssistantEngine) {
                                     )
                                 }
                             }
-                            IconButton(onClick = speech, enabled = !busy) {
-                                Icon(Icons.Filled.Mic, contentDescription = "语音输入", tint = c.brand)
+                            if (dictation.active) {
+                                IconButton(onClick = { dictation.stop() }) {
+                                    Box(Modifier.size(34.dp).background(c.brand, CircleShape), contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Filled.Stop, contentDescription = "结束语音输入", tint = c.onBrand, modifier = Modifier.size(20.dp))
+                                    }
+                                }
+                            } else {
+                                IconButton(onClick = { dictation.start() }, enabled = !busy) {
+                                    Icon(Icons.Filled.Mic, contentDescription = "语音输入", tint = c.brand)
+                                }
                             }
                             TextField(
                                 value = input,
-                                onValueChange = { input = it },
+                                onValueChange = {
+                                    // 听写时手动改文字：停止听写，以手动修改为准
+                                    if (dictationBase != null) {
+                                        dictationBase = null
+                                        dictation.stop()
+                                    }
+                                    input = it
+                                },
                                 modifier = Modifier.weight(1f),
-                                placeholder = { Text(if (attachments.isEmpty()) "说点什么" else "说说这张图") },
+                                interactionSource = fieldInteraction,
+                                placeholder = {
+                                    Text(
+                                        when {
+                                            dictation.active -> "请说话…"
+                                            attachments.isEmpty() -> "说点什么"
+                                            else -> "说说这张图"
+                                        },
+                                    )
+                                },
                                 maxLines = 4,
                                 colors = TextFieldDefaults.colors(
                                     focusedContainerColor = Color.Transparent,
@@ -275,9 +345,13 @@ fun AssistantScreen(engine: AssistantEngine) {
                     val canSend = !busy && imagesReady && (input.isNotBlank() || attachments.isNotEmpty())
                     Surface(
                         onClick = {
-                            engine.send(input, attachments.mapNotNull { it.image })
-                            input = ""
-                            attachments.clear()
+                            // 听写中直接点发送：等最后一句识别完再发
+                            if (dictation.active) {
+                                sendAfterDictation = true
+                                dictation.stop()
+                            } else {
+                                send()
+                            }
                         },
                         enabled = canSend,
                         shape = CircleShape,
@@ -304,6 +378,14 @@ fun AssistantScreen(engine: AssistantEngine) {
 }
 
 private const val MAX_IMAGES = 4
+
+/** 把听写的文字接在原有文字后面，中间没有标点时补一个逗号 */
+private fun appendDictation(base: String, said: String): String = when {
+    said.isEmpty() -> base
+    base.isEmpty() -> said
+    base.last() in "，。！？、；：,.!?;:" -> base + said
+    else -> "$base，$said"
+}
 
 /** 输入框上方待发送的图片；image 为空表示还在压缩 */
 private data class Attachment(val uri: Uri, val image: ChatImage?)

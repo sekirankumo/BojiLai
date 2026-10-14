@@ -10,25 +10,23 @@ import android.speech.RecognizerIntent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -40,9 +38,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -50,11 +48,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import io.github.sekirankumo.fitlog.ui.theme.Brand
 import io.github.sekirankumo.fitlog.voice.SpeechEngine
 import io.github.sekirankumo.fitlog.voice.VoiceModelState
@@ -64,25 +67,32 @@ import java.util.concurrent.atomic.AtomicBoolean
 /** 内置离线语音识别，在 App 根部提供；为空时（如截图测试）只用系统语音识别 */
 val LocalSpeechEngine = staticCompositionLocalOf<SpeechEngine?> { null }
 
-private enum class SpeechPhase { Idle, AskDownload, Listening }
+/** 声波显示的竖条数（最近约 2 秒的音量） */
+private const val WAVE_BARS = 40
+
+private fun toast(context: Context, text: String) = Toast.makeText(context, text, Toast.LENGTH_LONG).show()
 
 /**
- * 语音输入，返回一个启动函数，识别结果通过 onResult 回调。
- * 优先用内置的离线识别（第一次用时下载模型）；手机不支持时改用系统语音识别，
- * 都没有就提示用输入法的语音输入。
+ * 开始语音前的准备：手机不支持内置识别时改用系统语音识别（结果走 onSystemResult），
+ * 第一次使用先下载模型，再申请麦克风权限，都好了调用 onGranted。返回启动函数。
  */
 @Composable
-fun rememberSpeechInput(prompt: String = "请说话", onResult: (String) -> Unit): () -> Unit {
+private fun rememberVoiceGate(
+    prompt: String,
+    onSystemResult: (String) -> Unit,
+    onGranted: () -> Unit,
+): () -> Unit {
     val engine = LocalSpeechEngine.current
     val context = LocalContext.current
-    val callback = rememberUpdatedState(onResult)
-    var phase by remember { mutableStateOf(SpeechPhase.Idle) }
+    val systemCallback = rememberUpdatedState(onSystemResult)
+    val grantedCallback = rememberUpdatedState(onGranted)
+    var askDownload by remember { mutableStateOf(false) }
 
     val systemLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
                 ?.takeIf { it.isNotBlank() }
-                ?.let { callback.value(it) }
+                ?.let { systemCallback.value(it) }
         }
     }
     fun launchSystem() {
@@ -99,62 +109,71 @@ fun rememberSpeechInput(prompt: String = "请说话", onResult: (String) -> Unit
     }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
-            phase = SpeechPhase.Listening
+            grantedCallback.value()
         } else {
             toast(context, "需要麦克风权限才能语音输入，可以在 系统设置 → 应用 → 薄肌来 → 权限 里打开")
         }
     }
-    fun startListening() {
+    fun requestMic() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            phase = SpeechPhase.Listening
+            grantedCallback.value()
         } else {
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
     }
+
+    if (askDownload && engine != null) {
+        VoiceDownloadDialog(
+            engine,
+            onReady = {
+                askDownload = false
+                requestMic()
+            },
+            onDismiss = { askDownload = false },
+        )
+    }
+
     fun start() {
         when {
             engine == null || !engine.supported -> launchSystem()
-            engine.state.value == VoiceModelState.Ready -> startListening()
-            else -> phase = SpeechPhase.AskDownload
+            engine.state.value == VoiceModelState.Ready -> requestMic()
+            else -> askDownload = true
         }
     }
-
-    when (phase) {
-        SpeechPhase.AskDownload -> if (engine != null) {
-            VoiceDownloadDialog(
-                engine,
-                onReady = {
-                    phase = SpeechPhase.Idle
-                    startListening()
-                },
-                onDismiss = { phase = SpeechPhase.Idle },
-            )
-        }
-        SpeechPhase.Listening -> if (engine != null) {
-            VoiceListenSheet(
-                engine,
-                prompt,
-                onResult = { text ->
-                    phase = SpeechPhase.Idle
-                    if (text.isBlank()) toast(context, "没有听清，再试一次吧") else callback.value(text)
-                },
-                onError = { e ->
-                    phase = SpeechPhase.Idle
-                    // 识别库加载不了（极少数机型），退回系统语音识别
-                    if (e is LinkageError) launchSystem() else toast(context, "语音识别出错：${e.message ?: e}")
-                },
-                onCancel = { phase = SpeechPhase.Idle },
-            )
-        }
-        SpeechPhase.Idle -> Unit
-    }
-
     return { start() }
 }
 
-private fun toast(context: Context, text: String) = Toast.makeText(context, text, Toast.LENGTH_LONG).show()
+/**
+ * 弹出面板式的语音输入（记一餐、训练打卡用），返回启动函数。
+ * 一直听到点「说完了」为止，停顿处自动加逗号；结果通过 onResult 回调。
+ */
+@Composable
+fun rememberSpeechInput(prompt: String = "请说话", onResult: (String) -> Unit): () -> Unit {
+    val engine = LocalSpeechEngine.current
+    val context = LocalContext.current
+    val callback = rememberUpdatedState(onResult)
+    var listening by remember { mutableStateOf(false) }
+    val start = rememberVoiceGate(prompt, onSystemResult = { callback.value(it) }, onGranted = { listening = true })
 
-/** 第一次使用：说明并下载语音模型，下载完自动开始听 */
+    if (listening && engine != null) {
+        VoiceListenSheet(
+            engine,
+            prompt,
+            onResult = { text ->
+                listening = false
+                if (text.isBlank()) toast(context, "没有听到说话，再试一次吧") else callback.value(text)
+            },
+            onError = { e ->
+                listening = false
+                toast(context, "语音识别出错：${e.message ?: e}")
+            },
+            onCancel = { listening = false },
+        )
+    }
+    return start
+}
+
+/** 第一次使用：说明并下载语音模型，下载完自动继续 */
 @Composable
 private fun VoiceDownloadDialog(engine: SpeechEngine, onReady: () -> Unit, onDismiss: () -> Unit) {
     val c = Brand.colors
@@ -208,7 +227,7 @@ private fun VoiceDownloadDialog(engine: SpeechEngine, onReady: () -> Unit, onDis
     )
 }
 
-/** 录音面板：实时显示识别出的文字，停顿一下自动结束，也可以点「说完了」 */
+/** 录音面板：实时显示识别出的文字和声波，点「说完了」结束 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun VoiceListenSheet(
@@ -219,21 +238,24 @@ private fun VoiceListenSheet(
     onCancel: () -> Unit,
 ) {
     val finish = remember { AtomicBoolean(false) }
-    var partial by remember { mutableStateOf("") }
-    var level by remember { mutableFloatStateOf(0f) }
-    var hearing by remember { mutableStateOf(false) }
+    var text by remember { mutableStateOf("") }
+    var levels by remember { mutableStateOf(List(WAVE_BARS) { 0f }) }
+    var ready by remember { mutableStateOf(false) }
     var stopping by remember { mutableStateOf(false) }
+    // 切到后台或锁屏时按「说完了」处理，已经识别的文字不丢
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        stopping = true
+        finish.set(true)
+    }
     LaunchedEffect(Unit) {
         try {
-            val text = engine.listen(
+            val result = engine.listen(
                 finish,
-                onPartial = { partial = it },
-                onLevel = {
-                    level = it
-                    hearing = true
-                },
+                onText = { text = it },
+                onLevel = { levels = levels.drop(1) + it },
+                onReady = { ready = true },
             )
-            onResult(text)
+            onResult(result)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
@@ -242,14 +264,14 @@ private fun VoiceListenSheet(
     }
     ModalBottomSheet(
         onDismissRequest = onCancel,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { !stopping }),
         containerColor = Brand.colors.surface,
     ) {
         VoicePanel(
             prompt = prompt,
-            partial = partial,
-            level = level,
-            hearing = hearing,
+            text = text,
+            levels = levels,
+            ready = ready,
             stopping = stopping,
             onCancel = onCancel,
             onFinish = {
@@ -264,15 +286,14 @@ private fun VoiceListenSheet(
 @Composable
 fun VoicePanel(
     prompt: String,
-    partial: String,
-    level: Float,
-    hearing: Boolean,
+    text: String,
+    levels: List<Float>,
+    ready: Boolean,
     stopping: Boolean,
     onCancel: () -> Unit,
     onFinish: () -> Unit,
 ) {
     val c = Brand.colors
-    val pulse by animateFloatAsState(1f + level * 0.45f, tween(120), label = "pulse")
     Column(
         Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp).padding(bottom = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -280,28 +301,29 @@ fun VoicePanel(
         Text(prompt, style = MaterialTheme.typography.bodyMedium, color = c.muted, textAlign = TextAlign.Center)
         Spacer(Modifier.height(16.dp))
         Text(
-            partial.ifEmpty { if (hearing) "请说话…" else "正在准备…" },
+            text.ifEmpty { if (ready) "请说话…" else "正在准备…" },
             style = MaterialTheme.typography.titleLarge,
-            color = if (partial.isEmpty()) c.muted else c.text,
+            color = if (text.isEmpty()) c.muted else c.text,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
         )
         Spacer(Modifier.height(20.dp))
-        Box(Modifier.size(112.dp), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(76.dp).scale(pulse).background(c.brandSoft, CircleShape))
-            Box(Modifier.size(64.dp).background(c.brand, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Mic, contentDescription = null, tint = c.onBrand, modifier = Modifier.size(30.dp))
+        Box(Modifier.fillMaxWidth().height(56.dp), contentAlignment = Alignment.Center) {
+            if (ready) {
+                VoiceWave(levels, c.brand, Modifier.fillMaxWidth().height(56.dp))
+            } else {
+                CircularProgressIndicator(Modifier.size(28.dp), color = c.brand, strokeWidth = 3.dp)
             }
         }
         Spacer(Modifier.height(12.dp))
         Text(
-            if (stopping) "正在识别…" else "停顿一下会自动结束",
+            if (stopping) "正在识别最后一句…" else "说完点「说完了」，停顿会自动加逗号",
             style = MaterialTheme.typography.labelMedium,
             color = c.muted,
         )
         Spacer(Modifier.height(20.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Surface(onClick = onCancel, shape = RoundedCornerShape(14.dp), color = c.surface2, modifier = Modifier.weight(1f)) {
+            Surface(onClick = onCancel, enabled = !stopping, shape = RoundedCornerShape(14.dp), color = c.surface2, modifier = Modifier.weight(1f)) {
                 Text("取消", style = MaterialTheme.typography.labelLarge, color = c.text, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 14.dp))
             }
             Surface(onClick = onFinish, enabled = !stopping, shape = RoundedCornerShape(14.dp), color = c.brand, modifier = Modifier.weight(1f)) {
@@ -309,4 +331,118 @@ fun VoicePanel(
             }
         }
     }
+}
+
+/** 声波：一排竖条，最右边是最新的音量 */
+@Composable
+fun VoiceWave(levels: List<Float>, color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        if (levels.isEmpty()) return@Canvas
+        val gap = 3.dp.toPx()
+        val barWidth = ((size.width - gap * (levels.size - 1)) / levels.size).coerceAtLeast(1f)
+        val minHeight = 3.dp.toPx()
+        levels.forEachIndexed { i, level ->
+            // 开平方让小声也看得出起伏
+            val h = (minHeight + (size.height - minHeight) * kotlin.math.sqrt(level.coerceIn(0f, 1f)))
+            drawRoundRect(
+                color = color.copy(alpha = 0.35f + 0.65f * (i + 1) / levels.size),
+                topLeft = Offset(i * (barWidth + gap), (size.height - h) / 2),
+                size = Size(barWidth, h),
+                cornerRadius = CornerRadius(barWidth / 2),
+            )
+        }
+    }
+}
+
+/**
+ * 输入框里的连续听写（AI 助手用）：点一下开始，说的话实时写进输入框，
+ * 不会自动停止，调用 [stop] 结束。
+ */
+@Stable
+class Dictation internal constructor() {
+    /** 正在听写 */
+    var active by mutableStateOf(false)
+        internal set
+
+    /** 模型加载好、已经在识别 */
+    var ready by mutableStateOf(false)
+        internal set
+
+    /** 最近的音量，用来画声波 */
+    var levels by mutableStateOf(List(WAVE_BARS) { 0f })
+        internal set
+
+    internal var finish = AtomicBoolean(false)
+    internal var starter: () -> Unit = {}
+
+    fun start() {
+        if (active) return
+        finish = AtomicBoolean(false)
+        starter()
+    }
+
+    /** 结束听写；最后一句识别完后回调 onFinished */
+    fun stop() {
+        finish.set(true)
+    }
+}
+
+/**
+ * @param onStart 开始听写时回调（记下输入框里原来的文字）
+ * @param onText 到目前为止听写出的全部文字
+ * @param onFinished 听写结束（最后一句也识别完了）
+ */
+@Composable
+fun rememberDictation(
+    onStart: () -> Unit,
+    onText: (String) -> Unit,
+    onFinished: () -> Unit = {},
+): Dictation {
+    val engine = LocalSpeechEngine.current
+    val context = LocalContext.current
+    val dictation = remember { Dictation() }
+    val startCallback = rememberUpdatedState(onStart)
+    val textCallback = rememberUpdatedState(onText)
+    val finishedCallback = rememberUpdatedState(onFinished)
+    var running by remember { mutableStateOf(false) }
+
+    dictation.starter = rememberVoiceGate(
+        "请说话",
+        onSystemResult = {
+            startCallback.value()
+            textCallback.value(it)
+            finishedCallback.value()
+        },
+        onGranted = { running = true },
+    )
+
+    if (running && engine != null) {
+        // 离开页面、切到后台或锁屏时结束听写，已经识别的文字保留在输入框里
+        LifecycleEventEffect(Lifecycle.Event.ON_STOP) { dictation.stop() }
+        LaunchedEffect(Unit) {
+            dictation.active = true
+            dictation.ready = false
+            startCallback.value()
+            try {
+                val result = engine.listen(
+                    dictation.finish,
+                    onText = { textCallback.value(it) },
+                    onLevel = { dictation.levels = dictation.levels.drop(1) + it },
+                    onReady = { dictation.ready = true },
+                )
+                textCallback.value(result)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                toast(context, "语音识别出错：${e.message ?: e}")
+            } finally {
+                dictation.active = false
+                dictation.ready = false
+                dictation.levels = List(WAVE_BARS) { 0f }
+                running = false
+                finishedCallback.value()
+            }
+        }
+    }
+    return dictation
 }

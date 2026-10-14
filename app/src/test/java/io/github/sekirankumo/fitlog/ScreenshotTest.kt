@@ -137,9 +137,9 @@ class ScreenshotTest {
                         Box(Modifier.padding(top = 28.dp)) {
                             VoicePanel(
                                 prompt = "说说吃了什么，比如：中午吃了一碗牛肉面",
-                                partial = "中午吃了一碗牛肉面加了一个卤蛋",
-                                level = 0.5f,
-                                hearing = true,
+                                text = "中午吃了一碗牛肉面，加了一个卤蛋",
+                                levels = List(40) { i -> (0.15f + 0.6f * kotlin.math.abs(kotlin.math.sin(i * 0.55f))) * (i / 40f) },
+                                ready = true,
                                 stopping = false,
                                 onCancel = {},
                                 onFinish = {},

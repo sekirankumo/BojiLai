@@ -12,6 +12,7 @@ import com.k2fsa.sherpa.onnx.FeatureConfig
 import com.k2fsa.sherpa.onnx.OnlineModelConfig
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
 import com.k2fsa.sherpa.onnx.OnlineRecognizerConfig
+import com.k2fsa.sherpa.onnx.OnlineStream
 import com.k2fsa.sherpa.onnx.OnlineZipformer2CtcModelConfig
 import io.github.sekirankumo.fitlog.BuildConfig
 import kotlinx.coroutines.CancellationException
@@ -206,39 +207,46 @@ class SpeechEngine(private val context: Context, private val http: OkHttpClient)
     private var releaseJob: Job? = null
 
     /**
-     * 录音并识别，直到说完（停顿一会儿自动结束）、[finish] 被置为 true 或协程被取消。
-     * 需要已有录音权限、模型已下载。
-     * @param onPartial 实时识别出的文字
-     * @param onLevel 音量 0–1，用来画动画
+     * 连续听写：一直录音识别，直到 [finish] 被置为 true 或协程被取消，不会因为停顿自动结束。
+     * 说话中间停顿约 1 秒算一句，句与句之间自动加逗号。需要已有录音权限、模型已下载。
+     * @param onText 到目前为止识别出的全部文字（随说话实时更新，前面的字可能被修正）
+     * @param onLevel 音量 0–1，约每 50 毫秒一次，用来画声波
+     * @param onReady 模型加载好、开始出字时回调（加载期间的声音会先存着，不会丢）
      * @return 最终识别结果，没听到说话时为空字符串
      */
     @SuppressLint("MissingPermission")
     suspend fun listen(
         finish: AtomicBoolean,
-        onPartial: (String) -> Unit,
+        onText: (String) -> Unit,
         onLevel: (Float) -> Unit,
+        onReady: () -> Unit = {},
     ): String = withContext(Dispatchers.Default) {
         lock.withLock {
             releaseJob?.cancel()
-            val rec = recognizer ?: createRecognizer().also { recognizer = it }
+            // 先开麦克风再加载模型：加载的约 1 秒里说的话存在录音缓冲区里，加载完再识别
             val minBuf = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             val audio = AudioRecord(
                 MediaRecorder.AudioSource.VOICE_RECOGNITION,
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
-                maxOf(minBuf, SAMPLE_RATE * 2 / 5),
+                maxOf(minBuf, SAMPLE_RATE * 2 * 4),
             )
             if (audio.state != AudioRecord.STATE_INITIALIZED) {
                 audio.release()
                 scheduleRelease()
                 throw IOException("无法打开麦克风，可能被其他应用占用")
             }
-            val stream = rec.createStream()
+            var stream: OnlineStream? = null
+            val sentences = mutableListOf<String>()
+            fun joined(partial: String) = (sentences + partial).filter { it.isNotEmpty() }.joinToString("，")
             var text = ""
             try {
                 audio.startRecording()
-                val buf = ShortArray(SAMPLE_RATE / 10)
+                val rec = recognizer ?: createRecognizer().also { recognizer = it }
+                val s = rec.createStream().also { stream = it }
+                onReady()
+                val buf = ShortArray(SAMPLE_RATE / 20)
                 val started = SystemClock.elapsedRealtime()
                 while (isActive && !finish.get()) {
                     val n = audio.read(buf, 0, buf.size)
@@ -251,26 +259,33 @@ class SpeechEngine(private val context: Context, private val http: OkHttpClient)
                         v
                     }
                     onLevel(min(1f, sqrt(sum / n).toFloat() * 8f))
-                    stream.acceptWaveform(samples, SAMPLE_RATE)
-                    while (rec.isReady(stream)) rec.decode(stream)
-                    val partial = clean(rec.getResult(stream).text)
-                    if (partial != text) {
-                        text = partial
-                        onPartial(text)
+                    s.acceptWaveform(samples, SAMPLE_RATE)
+                    while (rec.isReady(s)) rec.decode(s)
+                    var partial = clean(rec.getResult(s).text)
+                    // 一句说完（停顿了一下）：记下这句，从头识别下一句
+                    if (rec.isEndpoint(s)) {
+                        if (partial.isNotEmpty()) sentences += partial
+                        partial = ""
+                        rec.reset(s)
                     }
-                    if (rec.isEndpoint(stream)) break
+                    val now = joined(partial)
+                    if (now != text) {
+                        text = now
+                        onText(text)
+                    }
+                    // 防止忘了关一直录：最长 10 分钟
                     if (SystemClock.elapsedRealtime() - started > MAX_LISTEN_MS) break
                 }
                 runCatching { audio.stop() }
                 ensureActive()
                 // 补一小段静音再结束，让最后一个字也能识别出来
-                stream.acceptWaveform(FloatArray(SAMPLE_RATE / 2), SAMPLE_RATE)
-                stream.inputFinished()
-                while (rec.isReady(stream)) rec.decode(stream)
-                text = clean(rec.getResult(stream).text)
+                s.acceptWaveform(FloatArray(SAMPLE_RATE / 2), SAMPLE_RATE)
+                s.inputFinished()
+                while (rec.isReady(s)) rec.decode(s)
+                text = joined(clean(rec.getResult(s).text))
             } finally {
                 audio.release()
-                stream.release()
+                stream?.release()
                 scheduleRelease()
             }
             text
@@ -298,11 +313,12 @@ class SpeechEngine(private val context: Context, private val http: OkHttpClient)
                 numThreads = 2,
                 provider = "cpu",
             ),
-            // 规则 1：一直没说话，8 秒后结束；规则 2：说完后停顿 1.2 秒结束；规则 3：最长 30 秒
+            // 这里的「结束」只用来分句，不会停止录音。
+            // 规则 1：一直没说话 3 秒，清空重来；规则 2：说完停顿 1 秒算一句；规则 3：一句最长 20 秒
             endpointConfig = EndpointConfig(
-                rule1 = EndpointRule(false, 8f, 0f),
-                rule2 = EndpointRule(true, 1.2f, 0f),
-                rule3 = EndpointRule(false, 0f, 30f),
+                rule1 = EndpointRule(false, 3f, 0f),
+                rule2 = EndpointRule(true, 1f, 0f),
+                rule3 = EndpointRule(false, 0f, 20f),
             ),
             enableEndpoint = true,
             decodingMethod = "greedy_search",
@@ -313,7 +329,7 @@ class SpeechEngine(private val context: Context, private val http: OkHttpClient)
     private companion object {
         const val MODEL_TAG = "asr-zh-v1"
         const val SAMPLE_RATE = 16000
-        const val MAX_LISTEN_MS = 60_000L
+        const val MAX_LISTEN_MS = 600_000L
         const val IDLE_RELEASE_MS = 120_000L
 
         /** https://api.github.com/repos/<owner>/<repo> */
