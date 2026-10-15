@@ -40,7 +40,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
+import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -188,7 +188,7 @@ fun AiOrb(
             var speed = 40f
             var clock = 0f
             while (true) {
-                withFrameNanos { now ->
+                withInfiniteAnimationFrameNanos { now ->
                     val dt = if (last == 0L) 0f else ((now - last) / 1e9f).coerceAtMost(0.05f)
                     last = now
                     val target = if (busyState.value) 144f else 40f

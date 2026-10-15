@@ -156,7 +156,6 @@ class ScreenshotTest {
     @Test fun settingsDark() = shot("settings_dark", "settings", dark = true)
     @Test fun aiSettings() = shot("ai_settings", "ai_settings")
     @Test fun profile() = shot("profile", "profile")
-    @Test fun generatePlan() = shot("generate_plan", "generate_plan")
     @Test fun operations() = shot("operations", "operations")
     @Test fun addFoodDark() = shot("add_food_dark", "diet_add/${java.time.LocalDate.now().toEpochDay()}", dark = true) {
         container.draftInbox.value = SampleData.drafts()
