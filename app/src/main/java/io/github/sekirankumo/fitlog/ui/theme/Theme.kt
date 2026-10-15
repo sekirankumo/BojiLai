@@ -148,7 +148,7 @@ private val NoPadding = PlatformTextStyle(includeFontPadding = false)
  * 文字：大标题 28 / 二级标题 22 / 标题 16 / 正文 15 / 标签 13 / 注释 12。
  */
 @Immutable
-class TypeScale(cn: FontFamily) {
+class TypeScale(private val cn: FontFamily) {
     private fun num(size: Int, weight: FontWeight = FontWeight.SemiBold, line: TextUnit = (size * 1.1f).sp) = TextStyle(
         fontFamily = NumFont, fontSize = size.sp, fontWeight = weight, lineHeight = line,
         lineHeightStyle = Tight, platformStyle = NoPadding,

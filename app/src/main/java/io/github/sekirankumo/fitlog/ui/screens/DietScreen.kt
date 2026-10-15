@@ -41,6 +41,7 @@ import io.github.sekirankumo.fitlog.data.NutritionTargets
 import io.github.sekirankumo.fitlog.data.db.FoodEntry
 import io.github.sekirankumo.fitlog.data.db.Meal
 import io.github.sekirankumo.fitlog.data.diet.DayQuality
+import io.github.sekirankumo.fitlog.data.diet.QualityZone
 import io.github.sekirankumo.fitlog.data.diet.DayTotals
 import io.github.sekirankumo.fitlog.data.diet.DietRepository
 import io.github.sekirankumo.fitlog.data.diet.FoodDraft
@@ -133,7 +134,17 @@ fun DietScreen(container: AppContainer, completeProfile: (List<String>) -> Unit,
                 onSelect = {},
                 mark = { d ->
                     dayQuality[d]?.let { q ->
-                        if (q.analyzed == 0) DayMark.Dot(c.faint) else DayMark.Dot(q.zone.color())
+                        if (q.analyzed == 0) {
+                            DayMark.Dot(c.faint)
+                        } else {
+                            DayMark.Dot(
+                                when (q.zone) {
+                                    QualityZone.Good -> c.brand
+                                    QualityZone.Fair -> c.warn
+                                    QualityZone.Poor -> c.danger
+                                },
+                            )
+                        }
                     }
                 },
                 description = { d -> dayQuality[d]?.takeIf { it.analyzed > 0 }?.let { "膳食${it.zone.label}" } ?: "" },
