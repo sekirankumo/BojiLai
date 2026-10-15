@@ -45,6 +45,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -58,6 +59,9 @@ import kotlin.math.roundToInt
 private val ROW = 50.dp
 private val HEAD = 40.dp
 private val LEGEND = 30.dp
+
+/** 日期下面放标记的那一格的高度（含和数字之间的 3dp） */
+private val MARK = 17.dp
 
 /**
  * 日历的状态：选中的日期、正在看的月份，以及展开程度 t（0 只露出选中那一周，1 是整月）。
@@ -283,16 +287,22 @@ private fun DayCell(
                 else -> c.text
             },
         )
-        Spacer(Modifier.height(3.dp))
-        when (mark) {
-            is DayMark.Dot -> Box(Modifier.size(5.dp).clip(CircleShape).background(mark.color))
-            is DayMark.Label -> Text(
-                mark.text,
-                style = if (mark.bold) Brand.type.tiny.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) else Brand.type.tiny,
-                color = mark.color,
-                maxLines = 1,
-            )
-            null -> Spacer(Modifier.height(5.dp))
+        // 标记放在固定高度的一格里：有没有标记、标记是点还是字，日期数字都在同一高度
+        Box(Modifier.fillMaxWidth().height(MARK).padding(top = 3.dp), contentAlignment = Alignment.TopCenter) {
+            when (mark) {
+                is DayMark.Dot -> Box(Modifier.size(5.dp).clip(CircleShape).background(mark.color))
+                is DayMark.Label -> Text(
+                    mark.text,
+                    style = if (mark.bold) Brand.type.tiny.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) else Brand.type.tiny,
+                    color = mark.color,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                )
+                null -> Unit
+            }
         }
     }
 }

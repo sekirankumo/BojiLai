@@ -165,7 +165,7 @@ fun TrainingScreen(container: AppContainer, nav: TrainingNav) {
                             p.status == DayStatus.SKIPPED -> c.faint
                             else -> c.muted
                         }
-                        DayMark.Label(p.title.replace(" ", ""), color, bold = d == today)
+                        DayMark.Label(shortTitle(p.title), color, bold = d == today)
                     }
                 },
                 description = { d -> byDate[d.toEpochDay()]?.let { "${it.title} ${DayStatus.label(it.status)}" } ?: "休息" },
@@ -354,7 +354,7 @@ private fun StatusTag(status: String) {
     Tag(DayStatus.label(status), kind = kind)
 }
 
-/** 一个动作一张卡片：照片、名称（全部做完时出现圆圈对勾）、部位休息上次重量、要领入口、每一组 */
+/** 一个动作一张卡片：照片、名称（全部做完时出现圆圈对勾）、部位休息上次重量、每一组；点上面这一行看动作要领 */
 @Composable
 private fun ExerciseCard(
     container: AppContainer,
@@ -373,7 +373,13 @@ private fun ExerciseCard(
     val allDone = ex.sets.isNotEmpty() && ex.sets.all { it.done }
     var editing by remember { mutableStateOf<Int?>(null) }
     BCard(modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            Modifier
+                .clip(RoundedCornerShape(14.dp))
+                .clickable(enabled = info != null, onClickLabel = "查看动作要领") { info?.let { nav.openExercise(it.id) } },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             AssetImage(info?.images?.firstOrNull(), Modifier.size(64.dp).clip(RoundedCornerShape(14.dp)))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -399,18 +405,9 @@ private fun ExerciseCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            // 只留一个箭头，表示这一行能点进去看要领
             if (info != null) {
-                Row(
-                    Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(c.surface2)
-                        .clickable { nav.openExercise(info.id) }
-                        .padding(start = 10.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("要领", style = Brand.type.label.copy(fontWeight = FontWeight.Medium), color = c.brand)
-                    Icon(AppIcons.Chevron, contentDescription = null, tint = c.brand, modifier = Modifier.size(16.dp))
-                }
+                Icon(AppIcons.Chevron, contentDescription = null, tint = c.faint, modifier = Modifier.size(20.dp))
             }
         }
         ex.note?.let {
@@ -597,4 +594,13 @@ private fun PlanCard(meta: PlanMeta, today: LocalDate, nav: TrainingNav, modifie
             BButton("新计划", Modifier.weight(1f), kind = ButtonKind.Soft, icon = AppIcons.Sparkle, onClick = nav.openGenerate)
         }
     }
+}
+
+/**
+ * 日历格子里放得下的短名字：去掉空格和括号里的说明，太长时只留加号前面那段。
+ * 例如「上肢拉（背/二头）+ 核心」→「上肢拉」，「胸 + 三头」→「胸+三头」。
+ */
+private fun shortTitle(title: String): String {
+    val plain = title.replace(" ", "").substringBefore("（").substringBefore("(")
+    return if (plain.length > 4) plain.substringBefore("+").substringBefore("＋").ifEmpty { plain } else plain
 }

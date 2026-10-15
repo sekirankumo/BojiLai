@@ -40,20 +40,23 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 import io.github.sekirankumo.fitlog.ui.theme.Brand
 import kotlinx.coroutines.delay
 
-/** 页面内容的模糊来源，浮层（底部导航、输入框）用它做毛玻璃；截图测试里为空 */
+/** 整页内容的模糊来源，页面外面的浮层（底部导航）用它做毛玻璃；截图测试里为空 */
 val LocalHaze = staticCompositionLocalOf<HazeState?> { null }
 
 /**
  * 毛玻璃：模糊背后的内容再叠一层半透明底色，描一圈很淡的边。
  * 安卓 12 以下（或截图测试里）没有实时模糊，只用半透明底色。
+ * @param source 模糊谁。浮层自己在 source 里面时什么都画不出来（变成全透明），
+ * 所以页面里的浮层（输入框、保存栏）要传页面自己的列表做来源，不能用整页的 LocalHaze。
  */
 @Composable
-fun Modifier.glass(shape: Shape): Modifier {
+fun Modifier.glass(shape: Shape, source: HazeState? = LocalHaze.current): Modifier {
     val c = Brand.colors
-    val haze = LocalHaze.current
+    val haze = source
     val base = this.clip(shape)
     val filled = if (haze != null && !LocalReduceMotion.current) {
         base.hazeEffect(
@@ -213,3 +216,13 @@ fun Modifier.quietClick(onClick: () -> Unit): Modifier = this.clickable(
 /** 只是为了让 Box 默认对齐方式更好写 */
 @Composable
 fun Centered(modifier: Modifier = Modifier, content: @Composable () -> Unit) = Box(modifier, contentAlignment = Alignment.Center) { content() }
+
+/** 页面里自己的模糊来源（给页面内的浮层用）；截图测试里不启用 */
+@Composable
+fun rememberLocalHaze(): HazeState? {
+    val state = androidx.compose.runtime.remember { HazeState() }
+    return if (LocalReduceMotion.current) null else state
+}
+
+/** 把这块内容作为模糊来源；source 为空时不做任何事 */
+fun Modifier.blurSource(source: HazeState?): Modifier = if (source == null) this else this.hazeSource(source)
