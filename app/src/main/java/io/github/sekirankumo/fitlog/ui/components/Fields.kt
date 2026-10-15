@@ -3,9 +3,6 @@ package io.github.sekirankumo.fitlog.ui.components
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -13,7 +10,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import io.github.sekirankumo.fitlog.util.TimeUtil
 import java.time.LocalDate
 import kotlin.math.abs
@@ -25,7 +21,7 @@ fun Double.clean(): String {
     return if (abs(r - r.roundToLong()) < 1e-9) r.roundToLong().toString() else r.toString()
 }
 
-/** 数字输入框：允许输入过程中的中间状态（如 "12."），外部数值变化时同步 */
+/** 数字输入框：允许输入过程中的中间状态（如 "12."），外部数值变化时同步；数字用 Barlow 显示 */
 @Composable
 fun NumberField(
     value: Double?,
@@ -33,21 +29,23 @@ fun NumberField(
     label: String,
     modifier: Modifier = Modifier,
     integer: Boolean = false,
+    placeholder: String? = null,
 ) {
     var text by remember { mutableStateOf(value?.clean() ?: "") }
     LaunchedEffect(value) {
         if (text.toDoubleOrNull() != value) text = value?.clean() ?: ""
     }
-    OutlinedTextField(
+    Field(
         value = text,
         onValueChange = { t ->
             text = t
             onValue(t.toDoubleOrNull())
         },
-        label = { Text(label) },
-        singleLine = true,
+        label = label,
+        placeholder = placeholder,
+        numeric = true,
+        integer = integer,
         modifier = modifier,
-        keyboardOptions = KeyboardOptions(keyboardType = if (integer) KeyboardType.Number else KeyboardType.Decimal),
     )
 }
 
@@ -65,4 +63,9 @@ fun pickDate(context: Context, initial: LocalDate, onPicked: (LocalDate) -> Unit
     DatePickerDialog(context, { _, y, m, d ->
         onPicked(LocalDate.of(y, m + 1, d))
     }, initial.year, initial.monthValue - 1, initial.dayOfMonth).show()
+}
+
+/** 只选时间 */
+fun pickTime(context: Context, minuteOfDay: Int, onPicked: (Int) -> Unit) {
+    TimePickerDialog(context, { _, h, m -> onPicked(h * 60 + m) }, minuteOfDay / 60, minuteOfDay % 60, true).show()
 }

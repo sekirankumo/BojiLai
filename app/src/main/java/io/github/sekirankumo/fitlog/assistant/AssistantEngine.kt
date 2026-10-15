@@ -18,6 +18,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -31,7 +32,8 @@ sealed interface ChatItem {
 
     /** images：图片的本地地址（Uri），只用于界面显示 */
     data class User(override val id: Long, val text: String, val images: List<String> = emptyList()) : ChatItem
-    data class Assistant(override val id: Long, val text: String) : ChatItem
+    /** model：回答它的模型名，界面上作为 AI 的名字显示；换了模型后旧回复保留当时的名字 */
+    data class Assistant(override val id: Long, val text: String, val model: String? = null) : ChatItem
 
     /** 已执行的修改，可撤销 */
     data class Action(override val id: Long, val opId: Long?, val summary: String, val undone: Boolean = false) : ChatItem
@@ -61,6 +63,11 @@ class AssistantEngine(
     private val db: AppDatabase,
     private val profile: ProfileRepository,
 ) {
+    /** 现在配置的助手模型名；还没配置（或对应的服务被删了）时为 null */
+    val modelName: kotlinx.coroutines.flow.Flow<String?> = settings.settings.map { s ->
+        s.assistantModel?.takeIf { it.model.isNotBlank() && s.provider(it.providerId) != null }?.model
+    }
+
     /** 其他页面跳转到助手时预填的输入内容 */
     val prefill = MutableStateFlow<String?>(null)
 
@@ -163,7 +170,7 @@ class AssistantEngine(
                 val messages = listOf(Msg.system(systemPrompt())) + trimmedHistory()
                 val result = client.chat(provider, ref.model, messages, registry.schemas)
                 history += result.toMessage()
-                result.content?.let { add(ChatItem.Assistant(id(), it)) }
+                result.content?.let { add(ChatItem.Assistant(id(), it, ref.model)) }
                 if (result.toolCalls.isEmpty()) return
 
                 val writes = mutableListOf<Pair<ToolCall, JsonObject>>()

@@ -1,6 +1,8 @@
 package io.github.sekirankumo.fitlog
 
 import io.github.sekirankumo.fitlog.assistant.ChatItem
+import io.github.sekirankumo.fitlog.data.ai.AiProvider
+import io.github.sekirankumo.fitlog.data.ai.ModelRef
 import io.github.sekirankumo.fitlog.data.UserProfile
 import io.github.sekirankumo.fitlog.data.db.BodyRecord
 import io.github.sekirankumo.fitlog.data.db.DayStatus
@@ -27,6 +29,14 @@ object SampleData {
 
     suspend fun seed(container: AppContainer) {
         val db = container.database
+        // AI 服务：助手回答上显示的名字就是这里配的模型名（Key 是假的，截图不会联网）
+        container.aiSettings.update {
+            it.copy(
+                providers = listOf(AiProvider("zhipu", "智谱 GLM", "https://open.bigmodel.cn/api/paas/v4/", "test-key")),
+                assistantModel = ModelRef("zhipu", "glm-4-flash"),
+                visionModel = ModelRef("zhipu", "glm-4v-flash"),
+            )
+        }
         container.profile.update {
             UserProfile(
                 sex = "male",
@@ -255,9 +265,9 @@ object SampleData {
     fun chat(): List<ChatItem> = listOf(
         ChatItem.User(1, "中午吃了一碗牛肉面，加了个卤蛋"),
         ChatItem.Action(2, 101, "添加饮食：牛肉面、卤蛋（共 625 kcal）"),
-        ChatItem.Assistant(3, "记好了。今天还能吃约 980 kcal，蛋白质还差 46 g，晚饭可以来份鸡胸或者鱼。"),
+        ChatItem.Assistant(3, "记好了。今天还能吃约 980 kcal，蛋白质还差 46 g，晚饭可以来份鸡胸或者鱼。", model = "glm-4-flash"),
         ChatItem.User(4, "今天卧推肩膀有点疼，换个动作"),
-        ChatItem.Assistant(5, "肩膀不舒服就别硬推了。可以换成「上斜哑铃卧推」或「器械推胸」，轨迹更可控、对肩膀压力小。换成哪个？"),
+        ChatItem.Assistant(5, "肩膀不舒服就别硬推了。可以换成「上斜哑铃卧推」或「器械推胸」，轨迹更可控、对肩膀压力小。换成哪个？", model = "glm-4-flash"),
         ChatItem.User(6, "器械推胸"),
         ChatItem.Pending(7, listOf("把「杠铃卧推」换成「器械推胸」，涉及 3 天：今天、下周一、下下周一")),
     )
@@ -285,6 +295,7 @@ object SampleData {
 
             > 练完 2 小时内吃够蛋白质，恢复会更快。
             """.trimIndent(),
+            model = "glm-4-flash",
         ),
     )
 }

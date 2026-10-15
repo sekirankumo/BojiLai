@@ -4,38 +4,63 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>薄肌来 · AI 陪你练出薄肌</title>
-<meta name="description" content="薄肌来：一句话记饮食、拍照算热量、AI 排训练计划、漏练自动重排。免费开源的安卓 App，数据只存在你的手机上。">
+<meta name="description" content="薄肌来：一句话记饮食、拍照算热量、膳食质量评分、AI 排训练计划、漏练自动重排。免费开源的安卓 App，数据只存在你的手机上。">
 <meta property="og:title" content="薄肌来 · AI 陪你练出薄肌">
 <meta property="og:description" content="一句话记饮食、拍照算热量、AI 排训练计划、漏练自动重排。免费开源的安卓 App。">
 <meta property="og:image" content="https://sekirankumo.github.io/BojiLai/img/shots/today.webp">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 108 108'%3E%3Crect width='108' height='108' rx='24' fill='%231E6B52'/%3E%3Cpath fill='%23fff' d='M30,40h8v28h-8z M38,44h6v20h-6z M64,44h6v20h-6z M70,40h8v28h-8z M44,51h20v6h-20z M24,47h6v14h-6z M78,47h6v14h-6z'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#F4F6F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B110E" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%2333A377'/%3E%3Cstop offset='.45' stop-color='%23299F9C'/%3E%3Cstop offset='.7' stop-color='%233699B8'/%3E%3Cstop offset='1' stop-color='%23638BD5'/%3E%3C/linearGradient%3E%3CradialGradient id='h' cx='.3' cy='.24' r='.57'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='.42'/%3E%3Cstop offset='1' stop-color='%23fff' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='72' height='72' rx='19' fill='url(%23g)'/%3E%3Crect width='72' height='72' rx='19' fill='url(%23h)'/%3E%3Cg fill='%23fff' transform='translate(-18 -18)'%3E%3Crect x='41' y='51.6' width='26' height='4.8' rx='2.4'/%3E%3Crect x='35' y='40' width='7' height='28' rx='3'/%3E%3Crect x='66' y='40' width='7' height='28' rx='3'/%3E%3Crect x='29.5' y='45' width='5.5' height='18' rx='2.5'/%3E%3Crect x='73' y='45' width='5.5' height='18' rx='2.5'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
+/* 和 App 同一套颜色：浅色 / 深色 */
 :root {
-  --bg: #f5f8f5;
-  --surface: #ffffff;
-  --surface-2: #eef3ef;
-  --text: #13201a;
-  --muted: #5b6b63;
-  --brand: #1e6b52;
-  --brand-ink: #ffffff;
-  --brand-soft: #d7efe3;
-  --accent: #b8e36a;
-  --line: #dbe5de;
-  --shadow: 0 24px 48px -20px rgba(19, 32, 26, .35);
-  --radius: 20px;
+  --bg: #F4F6F4; --surface: #FFFFFF; --surface-2: #ECF0ED;
+  --text: #101A15; --muted: #66756D; --faint: #9AA69F; --line: #E2E8E4;
+  --brand: #1E6B52; --on-brand: #FFFFFF; --brand-soft: #DCEFE5;
+  --warn: #D9822B; --danger: #C0392B; --danger-soft: #F8E1DE; --band: #CBDBD4;
+  --orb1: #33A377; --orb2: #299F9C; --orb3: #3699B8; --orb4: #638BD5;
+  --glow1: rgba(46, 150, 108, .22); --glow2: rgba(70, 168, 190, .16);
+  --glass: rgba(255, 255, 255, .68); --glass-line: rgba(16, 26, 21, .08);
+  --card-shadow: 0 1px 2px rgba(16, 26, 21, .04), 0 6px 18px -6px rgba(30, 70, 50, .12);
+  --phone-shadow: 0 40px 80px -36px rgba(16, 40, 30, .45), 0 12px 28px -18px rgba(16, 40, 30, .3);
+  --phone-frame: #0E1512;
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0d1411; --surface: #151f1a; --surface-2: #1b2822; --text: #e4ede8; --muted: #9db0a6;
-    --brand: #7fd8b0; --brand-ink: #0d1411; --brand-soft: #1f3a2f; --accent: #c9ef86; --line: #26352e;
-    --shadow: 0 24px 48px -20px rgba(0, 0, 0, .75);
+    --bg: #0B110E; --surface: #131B17; --surface-2: #1A2420;
+    --text: #E7EFEA; --muted: #93A49B; --faint: #5E6E66; --line: #1F2B25;
+    --brand: #7FD8B0; --on-brand: #0B110E; --brand-soft: #1C3429;
+    --warn: #F0A35E; --danger: #FF8A7A; --danger-soft: #3A1F1B; --band: #345346;
+    --orb1: #51BC8F; --orb2: #4AB8B5; --orb3: #53B3D1; --orb4: #7BA4F0;
+    --glow1: rgba(127, 216, 176, .14); --glow2: rgba(110, 200, 220, .10);
+    --glass: rgba(19, 27, 23, .62); --glass-line: rgba(231, 239, 234, .08);
+    --card-shadow: inset 0 1px 0 rgba(231, 239, 234, .05);
+    --phone-shadow: 0 40px 90px -30px rgba(0, 0, 0, .8);
+    --phone-frame: #050806;
+    color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0d1411; --surface: #151f1a; --surface-2: #1b2822; --text: #e4ede8; --muted: #9db0a6;
-  --brand: #7fd8b0; --brand-ink: #0d1411; --brand-soft: #1f3a2f; --accent: #c9ef86; --line: #26352e;
-  --shadow: 0 24px 48px -20px rgba(0, 0, 0, .75);
+  --bg: #0B110E; --surface: #131B17; --surface-2: #1A2420;
+  --text: #E7EFEA; --muted: #93A49B; --faint: #5E6E66; --line: #1F2B25;
+  --brand: #7FD8B0; --on-brand: #0B110E; --brand-soft: #1C3429;
+  --warn: #F0A35E; --danger: #FF8A7A; --danger-soft: #3A1F1B; --band: #345346;
+  --orb1: #51BC8F; --orb2: #4AB8B5; --orb3: #53B3D1; --orb4: #7BA4F0;
+  --glow1: rgba(127, 216, 176, .14); --glow2: rgba(110, 200, 220, .10);
+  --glass: rgba(19, 27, 23, .62); --glass-line: rgba(231, 239, 234, .08);
+  --card-shadow: inset 0 1px 0 rgba(231, 239, 234, .05);
+  --phone-shadow: 0 40px 90px -30px rgba(0, 0, 0, .8);
+  --phone-frame: #050806;
+  color-scheme: dark;
 }
+
+/* 和 App 同一套动效曲线 */
+:root { --ease: cubic-bezier(.2, 0, 0, 1); --ease-out: cubic-bezier(.05, .7, .1, 1); }
+
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body {
@@ -45,184 +70,302 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
-a { color: var(--brand); }
+a { color: var(--brand); text-decoration: none; }
 img { display: block; max-width: 100%; }
 .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+.num { font-family: "Barlow Condensed", -apple-system, sans-serif; font-weight: 600; letter-spacing: .005em; font-variant-numeric: tabular-nums; }
 
-/* 顶栏 */
-.nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
-.logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; color: var(--text); text-decoration: none; }
-.logo svg { width: 34px; height: 34px; }
-.nav-links { display: flex; gap: 18px; font-size: 15px; }
-.nav-links a { color: var(--muted); text-decoration: none; }
+/* 图标：和 App 图标一样的光球 + 哑铃 */
+.mark {
+  position: relative; display: inline-grid; place-items: center; flex: none;
+  width: 34px; height: 34px; border-radius: 27%;
+  background: conic-gradient(from 200deg, #33A377 0, #299F9C 22%, #3699B8 42%, #638BD5 60%, #299F9C 82%, #33A377 100%);
+  overflow: hidden;
+}
+.mark::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 30% 24%, rgba(255, 255, 255, .42), rgba(255, 255, 255, 0) 57%); }
+.mark svg { position: relative; width: 70%; height: 70%; }
+
+/* AI 光球（只有它是多色的） */
+.orb {
+  position: relative; display: inline-grid; place-items: center; flex: none;
+  width: 44px; height: 44px; border-radius: 50%; overflow: hidden;
+  box-shadow: 0 8px 22px -8px rgba(41, 159, 156, .55);
+}
+.orb::before {
+  content: ""; position: absolute; inset: -20%;
+  background: conic-gradient(from 200deg, var(--orb1) 0, var(--orb2) 22%, var(--orb3) 42%, var(--orb4) 60%, var(--orb2) 82%, var(--orb1) 100%);
+  animation: spin 9s linear infinite;
+}
+.orb::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 30% 26%, rgba(255, 255, 255, .45), rgba(255, 255, 255, 0) 55%); }
+.orb svg { position: relative; z-index: 1; width: 46%; height: 46%; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 顶栏：滑动后出现毛玻璃和渐隐边缘 */
+.nav-bar {
+  position: sticky; top: 0; z-index: 10;
+  transition: background .3s var(--ease), box-shadow .3s var(--ease);
+}
+.nav-bar.scrolled {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  backdrop-filter: blur(22px) saturate(1.4);
+  box-shadow: 0 1px 0 var(--glass-line);
+}
+.nav { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px; color: var(--text); }
+.nav-links { display: flex; gap: 22px; font-size: 15px; }
+.nav-links a { color: var(--muted); transition: color .15s; }
 .nav-links a:hover { color: var(--text); }
 
-/* 首屏 */
-.hero { display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: center; padding: 32px 0 72px; }
-.eyebrow { display: inline-block; padding: 4px 12px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-size: 13px; font-weight: 600; }
-h1 { font-size: clamp(40px, 7vw, 68px); line-height: 1.08; margin: 18px 0 16px; letter-spacing: -.02em; }
-h1 .hl { background: linear-gradient(transparent 62%, var(--accent) 62%); padding: 0 4px; }
-.lead { font-size: 18px; color: var(--muted); max-width: 30em; margin: 0 0 28px; }
-.cta { display: flex; flex-wrap: wrap; gap: 12px; }
-.btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 14px; font-weight: 700; font-size: 16px; text-decoration: none; transition: transform .15s; }
-.btn:hover { transform: translateY(-2px); }
-.btn-primary { background: var(--brand); color: var(--brand-ink); box-shadow: var(--shadow); }
-.btn-ghost { background: var(--surface); color: var(--text); border: 1px solid var(--line); }
-.meta { margin-top: 16px; font-size: 13px; color: var(--muted); }
+/* 首屏：背后是今日页那种缓慢漂移的光晕 */
+.hero-zone { position: relative; isolation: isolate; }
+.glow { position: absolute; inset: -120px 0 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.glow i { position: absolute; border-radius: 50%; filter: blur(60px); }
+.glow i:nth-child(1) { width: 520px; height: 520px; left: -120px; top: 0; background: var(--glow1); animation: drift1 53s ease-in-out infinite alternate; }
+.glow i:nth-child(2) { width: 460px; height: 460px; right: -80px; top: 120px; background: var(--glow2); animation: drift2 67s ease-in-out infinite alternate; }
+.glow i:nth-child(3) { width: 360px; height: 360px; left: 38%; top: 360px; background: var(--glow1); opacity: .6; animation: drift3 79s ease-in-out infinite alternate; }
+@keyframes drift1 { to { transform: translate(120px, 80px) scale(1.12); } }
+@keyframes drift2 { to { transform: translate(-140px, 60px) scale(.9); } }
+@keyframes drift3 { to { transform: translate(-80px, -90px) scale(1.15); } }
+
+.hero { display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: center; padding: 28px 0 80px; }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 6px; border-radius: 999px; background: var(--surface); box-shadow: var(--card-shadow); color: var(--muted); font-size: 13px; font-weight: 600; }
+.eyebrow .dot { width: 18px; height: 18px; border-radius: 50%; background: var(--brand-soft); display: grid; place-items: center; }
+.eyebrow .dot::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--brand); }
+h1 { font-size: clamp(42px, 7.2vw, 72px); line-height: 1.06; margin: 20px 0 18px; letter-spacing: -.025em; font-weight: 800; }
+h1 .hl { color: var(--brand); }
+.lead { font-size: 18px; color: var(--muted); max-width: 30em; margin: 0 0 30px; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 50px; padding: 0 22px; border-radius: 14px; font-weight: 700; font-size: 16px;
+  transition: transform .3s var(--ease), box-shadow .3s var(--ease), background .15s;
+}
+.btn:active { transform: scale(.97); }
+.btn-primary { background: var(--brand); color: var(--on-brand); box-shadow: 0 12px 24px -12px rgba(30, 107, 82, .6); }
+.btn-primary:hover { transform: translateY(-2px); }
+.btn-ghost { background: var(--surface); color: var(--text); box-shadow: var(--card-shadow); }
+.btn-ghost:hover { transform: translateY(-2px); }
+.meta { margin-top: 18px; font-size: 13px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
+.meta b { color: var(--text); font-size: 16px; }
 
 /* 手机外框 + 真实截图 */
 .phone {
   width: 290px; max-width: 100%; margin: 0 auto;
-  border-radius: 40px; padding: 9px;
-  background: #0f1713; box-shadow: var(--shadow);
+  border-radius: 44px; padding: 8px;
+  background: var(--phone-frame); box-shadow: var(--phone-shadow);
+  position: relative;
 }
-.phone img { width: 100%; border-radius: 32px; aspect-ratio: 393 / 852; object-fit: cover; background: var(--surface-2); }
-.duo { position: relative; height: 640px; }
+.phone::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); pointer-events: none; }
+.phone img { width: 100%; border-radius: 36px; aspect-ratio: 393 / 852; object-fit: cover; background: var(--surface-2); }
+.duo { position: relative; height: 660px; }
 .duo .phone { position: absolute; }
-.duo .back { right: 0; top: 0; transform: rotate(4deg); width: 250px; opacity: .97; }
-.duo .front { left: 4%; top: 36px; transform: rotate(-3deg); }
+.duo .back { right: 0; top: 0; width: 250px; transform: rotate(4deg); }
+.duo .front { left: 4%; top: 40px; transform: rotate(-3deg); }
+
+/* 数字条 */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: -24px 0 0; }
+.stat { background: var(--surface); border-radius: 18px; padding: 18px 20px; box-shadow: var(--card-shadow); }
+.stat .num { font-size: 40px; line-height: 1; color: var(--text); display: flex; align-items: baseline; gap: 4px; }
+.stat .num small { font-size: 18px; color: var(--muted); font-weight: 500; }
+.stat p { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
 
 /* 区块 */
-section { padding: 72px 0; }
+section { padding: 88px 0; }
 .sec-head { text-align: center; max-width: 640px; margin: 0 auto 44px; }
-.sec-head h2 { font-size: clamp(28px, 4.5vw, 40px); margin: 0 0 10px; letter-spacing: -.01em; }
+.sec-head h2 { font-size: clamp(28px, 4.5vw, 40px); margin: 0 0 10px; letter-spacing: -.015em; line-height: 1.25; }
 .sec-head p { color: var(--muted); margin: 0; font-size: 17px; }
 
-.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-.feature { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
-.feature .ico { width: 44px; height: 44px; border-radius: 12px; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; margin-bottom: 14px; }
-.feature .ico svg { width: 24px; height: 24px; }
-.feature h3 { margin: 0 0 8px; font-size: 19px; }
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.feature { background: var(--surface); border-radius: 18px; padding: 24px; box-shadow: var(--card-shadow); transition: transform .3s var(--ease); }
+.feature:hover { transform: translateY(-3px); }
+.feature .ico { width: 44px; height: 44px; border-radius: 14px; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; margin-bottom: 16px; }
+.feature .ico svg { width: 22px; height: 22px; }
+.feature .orb { margin-bottom: 16px; }
+.feature h3 { margin: 0 0 8px; font-size: 18px; }
 .feature p { margin: 0; color: var(--muted); font-size: 15px; }
 
 /* 功能展示 */
-.show { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; margin-bottom: 96px; }
+.show { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; margin-bottom: 112px; }
 .show:last-child { margin-bottom: 0; }
 .show.rev .show-text { order: 2; }
-.tag { display: inline-block; font-size: 13px; font-weight: 700; color: var(--brand); margin-bottom: 8px; letter-spacing: .04em; }
-.show-text h3 { font-size: clamp(24px, 3.4vw, 32px); margin: 0 0 12px; line-height: 1.3; }
-.show-text p { color: var(--muted); margin: 0 0 14px; }
+.tag { display: inline-block; font-size: 12px; font-weight: 700; color: var(--brand); background: var(--brand-soft); padding: 3px 10px; border-radius: 999px; margin-bottom: 14px; }
+.show-text h3 { font-size: clamp(24px, 3.4vw, 32px); margin: 0 0 12px; line-height: 1.3; letter-spacing: -.01em; }
+.show-text p { color: var(--muted); margin: 0 0 16px; }
 .ticks { list-style: none; padding: 0; margin: 0; }
-.ticks li { padding-left: 28px; position: relative; margin: 9px 0; }
-.ticks li::before { content: ""; position: absolute; left: 0; top: 6px; width: 16px; height: 16px; border-radius: 50%; background: var(--brand-soft); box-shadow: inset 0 0 0 4px var(--brand); }
+.ticks li { padding-left: 30px; position: relative; margin: 10px 0; }
+.ticks li::before {
+  content: ""; position: absolute; left: 0; top: 4px; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--brand-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6.5 12.5l3.5 3.5 7.5-8' fill='none' stroke='%231E6B52' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 14px no-repeat;
+}
+:root[data-theme="dark"] .ticks li::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6.5 12.5l3.5 3.5 7.5-8' fill='none' stroke='%237FD8B0' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .ticks li::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6.5 12.5l3.5 3.5 7.5-8' fill='none' stroke='%237FD8B0' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+}
+
+/* 膳食分刻度：和 App 里一样，23 分以上是淡绿色的「良好」区间（满分 49） */
+.rail-demo { background: var(--surface); border-radius: 18px; padding: 18px 20px; box-shadow: var(--card-shadow); margin: 18px 0 4px; max-width: 420px; }
+.rail-head { display: flex; align-items: baseline; justify-content: space-between; }
+.rail-head .num { font-size: 40px; line-height: 1; }
+.rail-head .num small { font-size: 16px; color: var(--muted); font-weight: 500; margin-left: 3px; }
+.rail-head span { color: var(--brand); font-weight: 700; font-size: 14px; }
+.rail { position: relative; height: 14px; margin: 14px 0 10px; }
+.rail::before { content: ""; position: absolute; left: 0; right: 0; top: 5.5px; height: 3px; border-radius: 3px; background: linear-gradient(to right, var(--surface-2) 0 47%, var(--band) 47%); }
+.rail .pin { position: absolute; top: 0; left: calc(57% - 7px); width: 14px; height: 14px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 2.5px var(--surface); transition: left 1.2s var(--ease-out); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.chip.good { background: var(--brand-soft); color: var(--brand); }
+.chip.less { background: var(--danger-soft); color: var(--danger); }
+.chip.more { background: var(--surface-2); color: var(--muted); font-weight: 600; }
 
 /* 深浅色对比 */
 .modes { display: flex; justify-content: center; gap: 28px; flex-wrap: wrap; }
 .modes figure { margin: 0; text-align: center; }
-.modes figcaption { margin-top: 14px; color: var(--muted); font-size: 14px; }
-.modes .phone { width: 260px; }
+.modes figcaption { margin-top: 16px; color: var(--muted); font-size: 14px; }
+.modes .phone { width: 250px; }
 
 /* 步骤 */
-.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; counter-reset: s; }
-.step { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
-.step::before { counter-increment: s; content: counter(s); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--brand); color: var(--brand-ink); font-weight: 800; margin-bottom: 12px; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; counter-reset: s; }
+.step { background: var(--surface); border-radius: 18px; padding: 24px; box-shadow: var(--card-shadow); }
+.step::before { counter-increment: s; content: counter(s); display: block; font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 44px; line-height: 1; color: var(--brand); margin-bottom: 12px; }
 .step h3 { margin: 0 0 6px; font-size: 18px; }
 .step p { margin: 0; color: var(--muted); font-size: 15px; }
 
 /* 问答 */
-.faq { max-width: 760px; margin: 0 auto; }
-details { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px 20px; margin-bottom: 12px; }
-summary { cursor: pointer; font-weight: 700; font-size: 17px; }
-details p { color: var(--muted); margin: 10px 0 0; }
+.faq { max-width: 760px; margin: 0 auto; background: var(--surface); border-radius: 18px; box-shadow: var(--card-shadow); overflow: hidden; }
+details { padding: 0 22px; }
+details + details { border-top: 1px solid var(--line); }
+summary { cursor: pointer; font-weight: 700; font-size: 16px; padding: 18px 0; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: ""; flex: none; width: 10px; height: 10px; border-right: 2px solid var(--faint); border-bottom: 2px solid var(--faint); transform: rotate(45deg) translateY(-3px); transition: transform .3s var(--ease); }
+details[open] summary::after { transform: rotate(225deg) translateY(-3px); }
+details p { color: var(--muted); margin: 0 0 18px; }
 
-.final { text-align: center; background: var(--brand); color: var(--brand-ink); border-radius: 28px; padding: 56px 24px; }
-.final h2 { margin: 0 0 10px; font-size: clamp(28px, 4.5vw, 40px); }
-.final p { margin: 0 0 24px; opacity: .85; }
-.final .btn { background: var(--brand-ink); color: var(--brand); }
+.final { position: relative; overflow: hidden; text-align: center; background: var(--surface); border-radius: 28px; padding: 64px 24px; box-shadow: var(--card-shadow); isolation: isolate; }
+.final .glow { inset: 0; }
+.final .orb { width: 64px; height: 64px; margin-bottom: 18px; }
+.final h2 { margin: 0 0 10px; font-size: clamp(28px, 4.5vw, 40px); letter-spacing: -.015em; }
+.final p { margin: 0 0 26px; color: var(--muted); }
 
-footer { padding: 40px 0 56px; color: var(--muted); font-size: 13px; text-align: center; }
-footer a { color: var(--muted); }
+footer { padding: 44px 0 60px; color: var(--muted); font-size: 13px; text-align: center; }
+footer a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
+
+/* 滑到时淡入上浮 */
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s var(--ease), transform .8s var(--ease-out); }
+.reveal.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .orb::before, .glow i { animation: none; }
+  html { scroll-behavior: auto; }
+}
 
 @media (max-width: 860px) {
   .hero, .show { grid-template-columns: 1fr; gap: 36px; }
   .show.rev .show-text { order: 0; }
   .features, .steps { grid-template-columns: 1fr; }
-  .hero { padding-top: 12px; }
-  section { padding: 52px 0; }
-  .show { margin-bottom: 72px; }
-  .duo { height: 600px; max-width: 420px; margin: 0 auto; width: 100%; }
+  .stats { grid-template-columns: repeat(2, 1fr); margin-top: 0; }
+  .hero { padding-top: 12px; padding-bottom: 56px; }
+  section { padding: 60px 0; }
+  .show { margin-bottom: 80px; }
+  .duo { height: 620px; max-width: 420px; margin: 0 auto; width: 100%; }
 }
 @media (max-width: 520px) {
   .nav-links { display: none; }
-  .btn { flex: 1; justify-content: center; }
+  .btn { flex: 1; }
   .duo { height: auto; }
   .duo .back { display: none; }
   .duo .phone.front { position: static; transform: none; }
   .modes .phone { width: 240px; }
+  .stat .num { font-size: 34px; }
 }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <nav class="nav">
-    <a class="logo" href="#">
-      <svg viewBox="0 0 108 108" aria-hidden="true"><rect width="108" height="108" rx="26" fill="#1E6B52"/><path fill="#fff" d="M30,40h8v28h-8z M38,44h6v20h-6z M64,44h6v20h-6z M70,40h8v28h-8z M44,51h20v6h-20z M24,47h6v14h-6z M78,47h6v14h-6z"/></svg>
-      薄肌来
-    </a>
-    <div class="nav-links">
-      <a href="#features">功能</a>
-      <a href="#start">开始使用</a>
-      <a href="#faq">常见问题</a>
-      <a href="https://github.com/sekirankumo/BojiLai">GitHub</a>
-    </div>
-  </nav>
-
-  <header class="hero">
-    <div>
-      <span class="eyebrow">免费 · 开源 · 安卓</span>
-      <h1>AI 陪你<br>练出<span class="hl">薄肌</span></h1>
-      <p class="lead">吃了什么说一句，练了什么点一下。热量帮你算，计划帮你排，漏练了自动帮你重新安排。你只管吃好、练好。</p>
-      <div class="cta">
-        <a class="btn btn-primary" href="https://github.com/sekirankumo/BojiLai/releases/latest">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3a1 1 0 0 1 1 1v9.59l3.3-3.3a1 1 0 1 1 1.4 1.42l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.42l3.3 3.3V4a1 1 0 0 1 1-1zM5 19h14a1 1 0 1 1 0 2H5a1 1 0 1 1 0-2z"/></svg>
-          下载安卓版
-        </a>
-        <a class="btn btn-ghost" href="#features">看看能做什么</a>
+<div class="nav-bar" id="navBar">
+  <div class="wrap">
+    <nav class="nav">
+      <a class="logo" href="#">
+        <span class="mark" aria-hidden="true"><svg viewBox="18 18 72 72"><g fill="#fff"><rect x="41" y="51.6" width="26" height="4.8" rx="2.4"/><rect x="35" y="40" width="7" height="28" rx="3"/><rect x="66" y="40" width="7" height="28" rx="3"/><rect x="29.5" y="45" width="5.5" height="18" rx="2.5"/><rect x="73" y="45" width="5.5" height="18" rx="2.5"/></g></svg></span>
+        薄肌来
+      </a>
+      <div class="nav-links">
+        <a href="#features">功能</a>
+        <a href="#start">开始使用</a>
+        <a href="#faq">常见问题</a>
+        <a href="https://github.com/sekirankumo/BojiLai">GitHub</a>
       </div>
-      <p class="meta">约 9 MB · Android 10 及以上 · 装好后在 App 里一键更新</p>
+    </nav>
+  </div>
+</div>
+
+<div class="hero-zone">
+  <div class="glow" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="wrap">
+    <header class="hero">
+      <div>
+        <span class="eyebrow"><span class="dot"></span>免费 · 开源 · 安卓</span>
+        <h1>AI 陪你<br>练出<span class="hl">薄肌</span></h1>
+        <p class="lead">吃了什么说一句，练了什么点一下。热量帮你算，吃得好不好帮你打分，计划帮你排，漏练了自动帮你重新安排。你只管吃好、练好。</p>
+        <div class="cta">
+          <a class="btn btn-primary" href="https://github.com/sekirankumo/BojiLai/releases/latest">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>
+            下载安卓版
+          </a>
+          <a class="btn btn-ghost" href="#features">看看能做什么</a>
+        </div>
+        <p class="meta"><span>约 <b class="num">18</b> MB</span><span>Android <b class="num">10</b> 及以上</span><span>装好后在 App 里一键更新</span></p>
+      </div>
+      <div class="duo">
+        <div class="phone back"><img src="img/shots/assistant.webp" alt="AI 助手对话界面" loading="eager"></div>
+        <div class="phone front"><img src="img/shots/today.webp" alt="今日页：还能吃多少、膳食质量、训练和身体状态" loading="eager"></div>
+      </div>
+    </header>
+
+    <div class="stats reveal">
+      <div class="stat"><div class="num">159</div><p>个常用动作，每个都有示意图和中文要领</p></div>
+      <div class="stat"><div class="num">49<small>分</small></div><p>满分的膳食质量评分，每天吃得怎么样一眼看出</p></div>
+      <div class="stat"><div class="num">0</div><p>个账号和服务器，记录只存在你的手机上</p></div>
+      <div class="stat"><div class="num">1<small>句话</small></div><p>记饮食、打卡、改计划，对 AI 说一句就行</p></div>
     </div>
-    <div class="duo">
-      <div class="phone back"><img src="img/shots/assistant.webp" alt="AI 助手对话界面" loading="eager"></div>
-      <div class="phone front"><img src="img/shots/today.webp" alt="今日页：摄入、训练和身体数据" loading="eager"></div>
-    </div>
-  </header>
+  </div>
 </div>
 
 <section id="features">
   <div class="wrap">
-    <div class="sec-head">
+    <div class="sec-head reveal">
       <h2>一个 App，管住嘴、迈开腿</h2>
       <p>饮食、训练、身体数据放在一起，再交给一个什么都能帮你做的 AI。</p>
     </div>
     <div class="features">
-      <div class="feature">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9zM5 15l.7 1.6L7.3 17.3 5.7 18 5 19.6 4.3 18l-1.6-.7 1.6-.7z"/></svg></div>
+      <div class="feature reveal">
+        <span class="orb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 2.5l1.9 5.3 5.3 1.9-5.3 1.9L12 16.9l-1.9-5.3-5.3-1.9 5.3-1.9zM19 14l.9 2.4 2.4.9-2.4.9L19 20.6l-.9-2.4-2.4-.9 2.4-.9z"/></svg></span>
         <h3>一句话全搞定</h3>
         <p>记饮食、记体重、训练打卡、换动作、改计划、查数据，对 AI 说一句就行。改数据前会先问你，改错了随时撤销。</p>
       </div>
-      <div class="feature">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3l-1.8 2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3zm3 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg></div>
+      <div class="feature reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.7l1.5-2h4.6l1.5 2h1.7A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.5"/></svg></div>
         <h3>拍一张，热量就有了</h3>
         <p>拍照、语音或打字都行。家常菜、外卖、"吃了半碗"这种模糊说法都能估，按菜拆成多条，每条都能自己改。</p>
       </div>
-      <div class="feature">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1h1a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h1V3a1 1 0 0 1 1-1zm13 8H4v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1zM8 13a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z"/></svg></div>
+      <div class="feature reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15h16"/><circle cx="14.5" cy="15" r="2.5" fill="currentColor" stroke="none"/><path d="M7 9.5c1.5-2 3-2 4.5 0s3 2 4.5 0"/></svg></div>
+        <h3>吃得好不好，有分数</h3>
+        <p>不只算热量，还按蔬菜水果、全谷物、豆类、红肉加工肉、含糖饮料这些食物组给每天打分，高盐的菜单独标出来。</p>
+      </div>
+      <div class="feature reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="9" cy="14.5" r="1.2" fill="currentColor" stroke="none"/></svg></div>
         <h3>为你排的训练计划</h3>
-        <p>告诉 AI 目标、每周几练、有什么器材，计划精确到每组几次，按日历排好。点一下打卡，也能语音报数。</p>
+        <p>告诉 AI 目标、每周几练、有什么器材，计划精确到每组几次，按日历排好。漏练了自动重排进后面几天，不满意一键撤销。</p>
       </div>
-      <div class="feature">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4a8 8 0 1 1-7.75 6H2l3-4 3 4H6.3A6 6 0 1 0 12 6a1 1 0 1 1 0-2zm-1 4a1 1 0 0 1 2 0v3.6l2.7 1.6a1 1 0 1 1-1 1.7l-3.2-1.9A1 1 0 0 1 11 12z"/></svg></div>
-        <h3>漏练了也不慌</h3>
-        <p>每天自动检查打卡。漏掉的训练由 AI 结合体重变化和完成情况重新排进后面几天，直接生效，不满意一键撤销。</p>
-      </div>
-      <div class="feature">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20a1 1 0 0 1-1-1V5a1 1 0 1 1 2 0v12.6l4.3-4.3a1 1 0 0 1 1.4 0l2.3 2.3 5.3-5.3H15a1 1 0 1 1 0-2h4.6a1 1 0 0 1 1 1V13a1 1 0 1 1-2 0v-1.3l-6 6a1 1 0 0 1-1.4 0L9 15.4 4.4 20z"/></svg></div>
+      <div class="feature reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 17.5l5-5 3.5 3.5 7-7"/><path d="M14.5 9h4.5v4.5"/></svg></div>
         <h3>身体变化看得见</h3>
-        <p>肌肉恢复图告诉你哪里还没恢复，训练热力图记录每一次坚持。体重、体脂趋势带 7 天移动平均，可以从手机的健康数据自动同步。</p>
+        <p>肌肉恢复图告诉你哪里还没恢复。体重、体脂趋势看 7 天移动平均，可以从手机的健康数据自动同步。</p>
       </div>
-      <div class="feature">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l8 3v6c0 5-3.4 9.3-8 11-4.6-1.7-8-6-8-11V5zm3.3 6.3L11 12.6l-2.3-2.3-1.4 1.4 3.7 3.7 5.7-5.7z"/></svg></div>
+      <div class="feature reveal">
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="M8.8 12l2.2 2.2 4.2-4.4"/></svg></div>
         <h3>数据在你手里</h3>
         <p>记录只存在你的手机上，没有账号、没有服务器。AI 用你自己的 Key，免费额度就够用。每天自动备份。</p>
       </div>
@@ -232,11 +375,11 @@ footer a { color: var(--muted); }
 
 <section>
   <div class="wrap">
-    <div class="show">
+    <div class="show reveal">
       <div class="show-text">
         <span class="tag">AI 助手</span>
         <h3>有事跟它说，<br>它帮你点完所有按钮</h3>
-        <p>底部正中间的「问 AI」随叫随到。它能读写 App 里的所有数据，像私人教练加营养师一样回答问题。</p>
+        <p>底部正中间那颗会转的光球就是 AI，随叫随到。它能读写 App 里的所有数据，像私人教练加营养师一样回答问题；回答上写着你配置的模型名，用的是哪个 AI 一目了然。</p>
         <ul class="ticks">
           <li>"中午吃了一碗牛肉面"——自动估算营养、拆成多条记好</li>
           <li>"卧推肩膀疼，换个动作"——找练同一肌群、对肩膀友好的替代动作</li>
@@ -248,9 +391,9 @@ footer a { color: var(--muted); }
       <div class="phone"><img src="img/shots/assistant.webp" alt="AI 助手对话截图" loading="lazy"></div>
     </div>
 
-    <div class="show rev">
+    <div class="show rev reveal">
       <div class="show-text">
-        <span class="tag">饮食</span>
+        <span class="tag">记一餐</span>
         <h3>吃了什么，拍给它看</h3>
         <p>一个「记一餐」入口：拍照、相册、语音、打字都在里面，语音在手机上离线识别。按中国常见的碗、盘、外卖份量来估，还会把炒菜用油算进去。</p>
         <ul class="ticks">
@@ -263,25 +406,44 @@ footer a { color: var(--muted); }
       <div class="phone"><img src="img/shots/add_food.webp" alt="记一餐截图" loading="lazy"></div>
     </div>
 
-    <div class="show">
+    <div class="show reveal">
+      <div class="show-text">
+        <span class="tag">膳食质量</span>
+        <h3>热量够了，<br>吃得好不好也要知道</h3>
+        <p>采用国际通用的全球膳食质量评分（GDQS），把一天吃的东西按 25 类食物打分，满分 49。刻度上淡绿色那段就是「良好」，目标是让点落进去。</p>
+        <div class="rail-demo" aria-label="膳食质量示例：28 分，良好">
+          <div class="rail-head"><div class="num">28<small>/ 49</small></div><span>良好</span></div>
+          <div class="rail"><div class="pin" id="pin"></div></div>
+          <div class="chips"><span class="chip good">深绿叶菜</span><span class="chip good">豆类</span><span class="chip less">加工肉</span><span class="chip more">可以多吃 · 水果</span></div>
+        </div>
+        <ul class="ticks">
+          <li>做得好、少吃点、可以多吃，分三组列出来，点开看具体吃了哪些</li>
+          <li>腌腊、卤味、重口味的菜标上「高盐」，不弹窗、不拦着你</li>
+          <li>和昨天、近 7 天平均比一比，慢慢往好的方向调</li>
+        </ul>
+      </div>
+      <div class="phone"><img src="img/shots/diet_quality.webp" alt="饮食页的膳食质量卡片截图" loading="lazy"></div>
+    </div>
+
+    <div class="show rev reveal">
       <div class="show-text">
         <span class="tag">训练</span>
         <h3>练什么、练几组，<br>一目了然</h3>
-        <p>训练计划按日历排好，完成、待练、漏练一眼就能分清。点一组打卡，长按改实际次数和重量，下次自动提示上次用的重量。</p>
+        <p>顶部是一周的日期条，往下一拉就展开成整月日历，像拉开「二楼」一样先有一点阻力。完成、待练、漏练用颜色分清；点一组打卡，长按改实际次数和重量。</p>
         <ul class="ticks">
-          <li>"卧推四组都做完了，最后一组只做了 6 个"——说出来就能打卡</li>
-          <li>漏练了，AI 自动把训练重新排进后面几天，不会把大训练挤在一起</li>
-          <li>每次调整都记在「调整记录」里，随时撤销</li>
+          <li>"卧推四组都做完了，最后一组只做了 6 个"——语音说出来就能打卡</li>
+          <li>每个动作都有示意图和要领，下次自动提示上次用的重量</li>
+          <li>漏练了，AI 把训练重新排进后面几天，每次调整都能撤销</li>
         </ul>
       </div>
       <div class="phone"><img src="img/shots/training_day.webp" alt="训练当天的动作和打卡截图" loading="lazy"></div>
     </div>
 
-    <div class="show rev">
+    <div class="show reveal">
       <div class="show-text">
         <span class="tag">动作库</span>
         <h3>每个动作，都教你做对</h3>
-        <p>159 个常用动作，健身房、哑铃、徒手都有。每个动作都有起始和结束姿势的示意图，自动循环播放，点开能全屏放大看细节。</p>
+        <p>159 个常用动作，健身房、哑铃、徒手都有。起始和结束姿势的示意图自动交替播放，点开能全屏放大看细节。</p>
         <ul class="ticks">
           <li>中文分步要领，告诉你发力和容易做错的地方</li>
           <li>按胸、背、肩、手臂、腿、臀、核心筛选</li>
@@ -291,40 +453,40 @@ footer a { color: var(--muted); }
       <div class="phone"><img src="img/shots/exercise.webp" alt="动作详情截图" loading="lazy"></div>
     </div>
 
-    <div class="show">
+    <div class="show rev reveal">
       <div class="show-text">
-        <span class="tag">身体状态</span>
+        <span class="tag">身体</span>
         <h3>哪块肌肉还在恢复，一眼就知道</h3>
         <p>肌肉图按恢复情况着色：刚练完最深，随恢复慢慢变浅。恢复时间按部位大小、训练组数、是否练到力竭来算，还会参考年龄和前一天的饮食。</p>
         <ul class="ticks">
           <li>「正在恢复」列出还没恢复好的部位，安排下一练心里有数</li>
-          <li>体重、体脂和趋势图放在一起，粗线的 7 天移动平均才是真实走向</li>
+          <li>体重、体脂趋势图上，粗线的 7 天移动平均才是真实走向</li>
           <li>体重秤的数据可以通过安卓的 Health Connect 自动同步过来</li>
         </ul>
       </div>
-      <div class="phone"><img src="img/shots/today_body.webp" alt="训练热力图和身体状态截图" loading="lazy"></div>
+      <div class="phone"><img src="img/shots/body.webp" alt="身体页：体重趋势和肌肉恢复截图" loading="lazy"></div>
     </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <div class="sec-head">
+    <div class="sec-head reveal">
       <h2>白天黑夜都好看</h2>
-      <p>跟随系统自动切换深色模式。</p>
+      <p>跟随系统自动切换深色模式。深色不是简单反色，每个颜色都单独调过。</p>
     </div>
-    <div class="modes">
+    <div class="modes reveal">
       <figure>
         <div class="phone"><img src="img/shots/diet.webp" alt="饮食页截图" loading="lazy"></div>
-        <figcaption>饮食页</figcaption>
+        <figcaption>饮食</figcaption>
       </figure>
       <figure>
         <div class="phone"><img src="img/shots/today_dark.webp" alt="深色模式下的今日页截图" loading="lazy"></div>
         <figcaption>深色模式</figcaption>
       </figure>
       <figure>
-        <div class="phone"><img src="img/shots/training.webp" alt="训练日历截图" loading="lazy"></div>
-        <figcaption>训练日历</figcaption>
+        <div class="phone"><img src="img/shots/training_dark.webp" alt="深色模式下的训练页截图" loading="lazy"></div>
+        <figcaption>训练</figcaption>
       </figure>
     </div>
   </div>
@@ -332,20 +494,20 @@ footer a { color: var(--muted); }
 
 <section id="start">
   <div class="wrap">
-    <div class="sec-head">
+    <div class="sec-head reveal">
       <h2>三步开始</h2>
       <p>不用注册账号，不用付费。</p>
     </div>
     <div class="steps">
-      <div class="step">
+      <div class="step reveal">
         <h3>下载安装</h3>
         <p>在 <a href="https://github.com/sekirankumo/BojiLai/releases/latest">Releases</a> 下载最新的 APK 安装。以后有新版本，App 里点一下就能更新。</p>
       </div>
-      <div class="step">
+      <div class="step reveal">
         <h3>填上 AI Key</h3>
         <p>设置 → AI 服务配置，选一个服务商填入 Key。推荐智谱，glm-4-flash 和 glm-4v-flash 都免费。支持任何 OpenAI 兼容接口。</p>
       </div>
-      <div class="step">
+      <div class="step reveal">
         <h3>开练</h3>
         <p>填好身高体重和目标，让 AI 生成训练计划，然后每天记饮食、打卡就行，剩下的交给它。</p>
       </div>
@@ -355,8 +517,8 @@ footer a { color: var(--muted); }
 
 <section id="faq">
   <div class="wrap">
-    <div class="sec-head"><h2>常见问题</h2></div>
-    <div class="faq">
+    <div class="sec-head reveal"><h2>常见问题</h2></div>
+    <div class="faq reveal">
       <details>
         <summary>真的免费吗？</summary>
         <p>App 免费、开源。AI 功能需要你自己的 API Key，智谱、Gemini 等服务都有免费额度，个人日常使用基本够用。</p>
@@ -368,6 +530,10 @@ footer a { color: var(--muted); }
       <details>
         <summary>AI 估的热量准吗？</summary>
         <p>照片估算一般有 20%～30% 的误差，所以每一条都能修改。对份量有把握时改一下克数，热量和营养素会自动按比例换算。常吃的食物校准一次后收藏起来，以后就准了。</p>
+      </details>
+      <details>
+        <summary>膳食质量分是怎么算的？</summary>
+        <p>采用国际通用的全球膳食质量评分（GDQS）：把食物分成 25 类，吃够健康的组（深绿叶菜、豆类、全谷物等）加分，不健康的组（加工肉、含糖饮料、油炸食品等）吃多了扣分。食物组由 AI 在记录时顺便拆分好，你不用手动填。分数只是参考，不是医学诊断。</p>
       </details>
       <details>
         <summary>漏练了它会怎么调整？会不会乱改？</summary>
@@ -386,10 +552,12 @@ footer a { color: var(--muted); }
 </section>
 
 <div class="wrap">
-  <div class="final">
+  <div class="final reveal">
+    <div class="glow" aria-hidden="true"><i></i><i></i><i></i></div>
+    <span class="orb" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 2.5l1.9 5.3 5.3 1.9-5.3 1.9L12 16.9l-1.9-5.3-5.3-1.9 5.3-1.9zM19 14l.9 2.4 2.4.9-2.4.9L19 20.6l-.9-2.4-2.4-.9 2.4-.9z"/></svg></span>
     <h2>今天就开始练薄肌</h2>
     <p>免费下载，填个 Key，五分钟上手。</p>
-    <a class="btn" href="https://github.com/sekirankumo/BojiLai/releases/latest">下载安卓版</a>
+    <a class="btn btn-primary" href="https://github.com/sekirankumo/BojiLai/releases/latest">下载安卓版</a>
   </div>
 </div>
 
@@ -399,5 +567,34 @@ footer a { color: var(--muted); }
     <p>页面截图来自 App 的真实界面，使用示例数据。动作示意图和数据来自 <a href="https://github.com/yuhonas/free-exercise-db">free-exercise-db</a>（公共领域）。<br>本 App 提供的营养和训练建议仅供参考，不构成医疗建议。</p>
   </div>
 </footer>
+
+<script>
+// 顶栏：内容滑到下面时出现毛玻璃
+(function () {
+  var bar = document.getElementById('navBar');
+  function onScroll() { bar.classList.toggle('scrolled', window.scrollY > 8); }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // 滑到时淡入上浮；膳食分的点从左边滑到 28 分的位置
+  var items = document.querySelectorAll('.reveal');
+  var pin = document.getElementById('pin');
+  if (pin) pin.style.left = '-7px';
+  if (!('IntersectionObserver' in window)) {
+    items.forEach(function (el) { el.classList.add('in'); });
+    if (pin) pin.style.left = '';
+    return;
+  }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      e.target.classList.add('in');
+      if (pin && e.target.contains(pin)) setTimeout(function () { pin.style.left = ''; }, 250);
+      io.unobserve(e.target);
+    });
+  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+  items.forEach(function (el) { io.observe(el); });
+})();
+</script>
 </body>
 </html>

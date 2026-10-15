@@ -105,11 +105,12 @@ class ScreenshotTest {
     @Test fun today() = shot("today", "today")
     @Test fun todayDark() = shot("today_dark", "today", dark = true)
 
-    /** 今日页往下滚动到身体状态 */
+    /** 今日页往下滚动到训练和身体状态 */
     @Test fun todayBody() = shot("today_body", "today", after = {
-        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(2)
+        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(3)
     })
     @Test fun diet() = shot("diet", "diet")
+    @Test fun dietDark() = shot("diet_dark", "diet", dark = true)
 
     /** 饮食页往下滚到膳食质量卡片 */
     @Test fun dietQuality() = shot("diet_quality", "diet", after = {
@@ -124,6 +125,7 @@ class ScreenshotTest {
         container.draftInbox.value = SampleData.drafts()
     }
     @Test fun training() = shot("training", "training")
+    @Test fun trainingDark() = shot("training_dark", "training", dark = true)
 
     /** 训练页往下滚动到当天的动作和打卡 */
     @Test fun trainingDay() = shot("training_day", "training", after = {
@@ -132,13 +134,32 @@ class ScreenshotTest {
     @Test fun exercise() = shot("exercise", "exercise/Barbell_Bench_Press_-_Medium_Grip")
     @Test fun library() = shot("library", "exercise_library")
     @Test fun body() = shot("body", "body")
+    @Test fun bodyDark() = shot("body_dark", "body", dark = true)
+
+    /** 身体页往下：恢复状态和记录 */
+    @Test fun bodyRecords() = shot("body_records", "body", after = {
+        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(2)
+    })
     @Test fun assistant() = shot("assistant", "assistant") {
         container.assistant.showPreview(SampleData.chat())
     }
     @Test fun assistantTable() = shot("assistant_table", "assistant") {
         container.assistant.showPreview(SampleData.chatTable())
     }
+    @Test fun assistantDark() = shot("assistant_dark", "assistant", dark = true) {
+        container.assistant.showPreview(SampleData.chat())
+    }
+
+    /** 助手首屏：光球、模型名、建议 */
+    @Test fun assistantWelcome() = shot("assistant_welcome", "assistant")
     @Test fun settings() = shot("settings", "settings")
+    @Test fun settingsDark() = shot("settings_dark", "settings", dark = true)
+    @Test fun aiSettings() = shot("ai_settings", "ai_settings")
+    @Test fun profile() = shot("profile", "profile")
+    @Test fun operations() = shot("operations", "operations")
+    @Test fun addFoodDark() = shot("add_food_dark", "diet_add/${java.time.LocalDate.now().toEpochDay()}", dark = true) {
+        container.draftInbox.value = SampleData.drafts()
+    }
     @Test fun favorites() = shot("favorites", "favorites")
 
     /** 个人信息没填全时，摄入卡片下方提示缺什么 */
@@ -213,7 +234,7 @@ class ScreenshotTest {
             BojiLaiTheme(fontFamily = font) {
                 Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.BottomCenter) {
                     Surface(shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), color = Brand.colors.surface) {
-                        Box(Modifier.padding(top = 28.dp)) {
+                        Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 20.dp)) {
                             VoicePanel(
                                 prompt = "说说吃了什么，比如：中午吃了一碗牛肉面",
                                 text = "中午吃了一碗牛肉面，加了一个卤蛋",

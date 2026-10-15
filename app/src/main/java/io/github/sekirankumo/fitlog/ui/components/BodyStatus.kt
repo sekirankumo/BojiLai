@@ -1,20 +1,12 @@
 package io.github.sekirankumo.fitlog.ui.components
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -22,7 +14,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.sekirankumo.fitlog.AppContainer
 import io.github.sekirankumo.fitlog.data.UserProfile
@@ -83,76 +80,59 @@ fun rememberTrainingData(container: AppContainer): TrainingData {
     }
 }
 
-/**
- * 身体状态：左边是正面、背面肌肉图（刚练过颜色深，随恢复慢慢变浅），右边是体重和体脂，
- * 下面列出还在恢复的部位和大概还要多久。
- */
+/** 正面、背面两个肌肉图并排 */
+@Composable
+fun MuscleFigures(muscles: Map<String, MuscleState>, female: Boolean, height: Dp, modifier: Modifier = Modifier, gap: Dp = 4.dp) {
+    val intensities = remember(muscles) { muscles.mapValues { it.value.intensity } }
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(gap)) {
+        MuscleFigure(BodyView.front(female), intensities, Modifier.weight(1f).height(height))
+        MuscleFigure(BodyView.back(female), intensities, Modifier.weight(1f).height(height))
+    }
+}
+
+/** 「正在恢复」和还在恢复的部位；同一个中文名的部位按剩余时间最长的算 */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun BodyStatusCard(
-    muscles: Map<String, MuscleState>,
-    female: Boolean,
-    weight: String,
-    weightSub: String?,
-    weightSubGood: Boolean,
-    fat: String,
-    fatSub: String?,
-    fatSubGood: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-) {
+fun RecoveringChips(muscles: Map<String, MuscleState>, modifier: Modifier = Modifier) {
     val c = Brand.colors
-    val intensities = remember(muscles) { muscles.mapValues { it.value.intensity } }
-    BCard(modifier.fillMaxWidth(), onClick = onClick) {
-        SectionHeader("身体状态") {
-            if (onClick != null) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = c.muted)
-        }
-        Spacer(Modifier.height(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1.25f)) {
-                MuscleFigure(BodyView.front(female), intensities, Modifier.weight(1f).height(196.dp))
-                MuscleFigure(BodyView.back(female), intensities, Modifier.weight(1f).height(196.dp))
-            }
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(0.85f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Metric("体重", weight, "kg", weightSub, weightSubGood)
-                HorizontalDivider(color = c.line)
-                Metric("体脂率", fat, "%", fatSub, fatSubGood)
-            }
-        }
-        Spacer(Modifier.height(10.dp))
-        // 同一个中文名的部位（如腹肌、腹斜肌各自独立）按剩余时间最长的显示
-        val recovering = muscles.entries
+    val recovering = remember(muscles) {
+        muscles.entries
             .filter { it.value.intensity >= 0.05f }
             .mapNotNull { e -> TrainingStats.SLUG_LABELS[e.key]?.let { it to e.value.hoursLeft } }
             .groupBy({ it.first }, { it.second }).mapValues { it.value.max() }
             .entries.sortedByDescending { it.value }
             .take(6)
+            .map { it.key }
+    }
+    FlowRow(
+        modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         Text(
             if (recovering.isEmpty()) "全身都已恢复" else "正在恢复",
-            style = MaterialTheme.typography.labelMedium,
+            style = Brand.type.label,
             color = c.muted,
+            modifier = Modifier.align(Alignment.CenterVertically),
         )
-        if (recovering.isNotEmpty()) {
-            Spacer(Modifier.height(6.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                recovering.forEach { (label, _) -> Pill(label) }
-            }
-        }
+        recovering.forEach { Tag(it) }
     }
 }
 
+/** 体重小折线：最近几次记录，最后一点加粗 */
 @Composable
-private fun Metric(label: String, value: String, unit: String, sub: String?, good: Boolean) {
+fun Sparkline(values: List<Double>, modifier: Modifier = Modifier) {
     val c = Brand.colors
-    Column {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = c.muted)
-        Row(verticalAlignment = Alignment.Bottom) {
-            AnimatedNumber(value, style = MaterialTheme.typography.headlineSmall, color = c.text, fontWeight = FontWeight.Bold)
-            Text(" $unit", style = MaterialTheme.typography.labelMedium, color = c.muted, modifier = Modifier.padding(bottom = 4.dp))
-        }
-        sub?.let {
-            Text(it, style = MaterialTheme.typography.labelSmall, color = if (good) c.brand else c.muted, maxLines = 1)
-        }
+    if (values.size < 2) return
+    Canvas(modifier) {
+        val lo = values.min()
+        val hi = values.max().coerceAtLeast(lo + 0.1)
+        val pad = 3.dp.toPx()
+        fun x(i: Int) = pad + (size.width - pad * 2) * i / (values.size - 1)
+        fun y(v: Double) = pad + (size.height - pad * 2) * (1 - ((v - lo) / (hi - lo)).toFloat())
+        val path = Path()
+        values.forEachIndexed { i, v -> if (i == 0) path.moveTo(x(i), y(v)) else path.lineTo(x(i), y(v)) }
+        drawPath(path, c.brand, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawCircle(c.brand, 3.dp.toPx(), Offset(x(values.size - 1), y(values.last())))
     }
 }
