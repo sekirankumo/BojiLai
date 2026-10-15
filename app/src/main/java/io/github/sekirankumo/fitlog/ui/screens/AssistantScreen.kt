@@ -26,6 +26,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import io.github.sekirankumo.fitlog.ui.components.blurSource
+import io.github.sekirankumo.fitlog.ui.components.rememberLocalHaze
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -212,12 +220,27 @@ fun AssistantScreen(engine: AssistantEngine, openAiSettings: () -> Unit = {}) {
         if (count > 0) listState.animateScrollToItem(count - 1)
     }
 
+    // 键盘弹出时页面变矮，列表跟着往上推同样的距离，最新的消息不会被键盘和输入框挡住
+    val density = LocalDensity.current
+    val ime = WindowInsets.ime
+    LaunchedEffect(listState) {
+        var last = ime.getBottom(density)
+        snapshotFlow { ime.getBottom(density) }.collect { h ->
+            val grow = h - last
+            last = h
+            if (grow > 0) listState.scrollBy(grow.toFloat())
+        }
+    }
+
     val insets = LocalScreenInsets.current
+    // 键盘弹出后系统导航条被键盘盖住，不用再给它留位置
+    val imeBottom = ime.asPaddingValues().calculateBottomPadding()
+    val haze = rememberLocalHaze()
     Box(Modifier.fillMaxSize().imePadding()) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = insets.top + 8.dp, bottom = insets.bottom + 110.dp),
+            modifier = Modifier.fillMaxSize().blurSource(haze),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = insets.top + 8.dp, bottom = (insets.bottom - imeBottom).coerceAtLeast(0.dp) + 110.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (items.isEmpty()) {
@@ -255,7 +278,7 @@ fun AssistantScreen(engine: AssistantEngine, openAiSettings: () -> Unit = {}) {
                 .padding(12.dp)
                 .widthIn(max = 420.dp)
                 .fillMaxWidth()
-                .glass(RoundedCornerShape(26.dp))
+                .glass(RoundedCornerShape(26.dp), haze)
                 .padding(6.dp),
         ) {
             if (attachments.isNotEmpty()) {

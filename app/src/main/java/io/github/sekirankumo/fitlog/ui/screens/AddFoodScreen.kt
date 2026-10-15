@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import io.github.sekirankumo.fitlog.ui.components.blurSource
+import io.github.sekirankumo.fitlog.ui.components.rememberLocalHaze
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -193,10 +195,11 @@ fun AddFoodScreen(
     val insets = LocalScreenInsets.current
     val list = rememberLazyListState()
     TrackTopBar(list)
+    val haze = rememberLocalHaze()
     Box(Modifier.fillMaxSize().imePadding()) {
         LazyColumn(
             state = list,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().blurSource(haze),
             contentPadding = PaddingValues(
                 start = 16.dp,
                 end = 16.dp,
@@ -382,7 +385,7 @@ fun AddFoodScreen(
                     .padding(12.dp)
                     .widthIn(max = 420.dp)
                     .fillMaxWidth()
-                    .glass(RoundedCornerShape(26.dp))
+                    .glass(RoundedCornerShape(26.dp), haze)
                     .padding(start = 18.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
