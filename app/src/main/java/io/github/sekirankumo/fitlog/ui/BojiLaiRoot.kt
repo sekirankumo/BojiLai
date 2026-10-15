@@ -421,10 +421,13 @@ private fun BoxScope.TopBar(
             .height(statusTop + BAR_HEIGHT + 28.dp)
             .drawBehind {
                 if (edge > 0.01f) {
+                    // 状态栏和顶栏下面基本不透，顶栏以下的 28dp 再慢慢融进背景
+                    val bar = (statusTop + BAR_HEIGHT).toPx() / size.height
                     drawRect(
                         Brush.verticalGradient(
                             0f to c.bg.copy(alpha = edge),
-                            0.62f to c.bg.copy(alpha = 0.88f * edge),
+                            bar * 0.75f to c.bg.copy(alpha = edge),
+                            bar to c.bg.copy(alpha = 0.9f * edge),
                             1f to c.bg.copy(alpha = 0f),
                         ),
                     )

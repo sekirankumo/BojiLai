@@ -234,7 +234,7 @@ class ScreenshotTest {
             BojiLaiTheme(fontFamily = font) {
                 Box(Modifier.fillMaxSize().background(Color(0x99000000)), contentAlignment = Alignment.BottomCenter) {
                     Surface(shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), color = Brand.colors.surface) {
-                        Box(Modifier.padding(top = 28.dp)) {
+                        Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 20.dp)) {
                             VoicePanel(
                                 prompt = "说说吃了什么，比如：中午吃了一碗牛肉面",
                                 text = "中午吃了一碗牛肉面，加了一个卤蛋",

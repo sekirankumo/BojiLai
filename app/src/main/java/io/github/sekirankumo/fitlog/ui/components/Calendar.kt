@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -208,7 +209,12 @@ fun ExpandableCalendar(
                     ) { _, dx -> total += dx }
                 },
         ) {
-            Column(Modifier.offset { IntOffset(0, (-selRow * ROW.toPx() * (1 - t)).roundToInt()) }) {
+            // 整月的几行都按原高度排好（不受外面高度限制），再整体上移，让选中那一周露在窗口里
+            Column(
+                Modifier
+                    .wrapContentHeight(align = Alignment.Top, unbounded = true)
+                    .offset { IntOffset(0, (-selRow * ROW.toPx() * (1 - t)).roundToInt()) },
+            ) {
                 for (r in 0 until rows) {
                     Row(Modifier.fillMaxWidth().height(ROW), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         for (col in 0 until 7) {
