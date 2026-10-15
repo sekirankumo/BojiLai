@@ -124,6 +124,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.coil.compose)
+    implementation(libs.haze)
     implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.health.connect)
     implementation(files(sherpaAar))

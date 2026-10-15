@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  图标底色：和 AI 键同一颗光球。扫掠渐变（品牌绿 → 青 → 蓝 → 蓝紫 → 回到绿），
+  转 110° 让绿色在左下、蓝紫在右上；左上角叠一层白色高光。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="110">
+        <path android:pathData="M-40,-40h188v188h-188z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="sweep"
+                    android:centerX="54"
+                    android:centerY="54">
+                    <item android:offset="0" android:color="#FF33A377" />
+                    <item android:offset="0.22" android:color="#FF299F9C" />
+                    <item android:offset="0.42" android:color="#FF3699B8" />
+                    <item android:offset="0.6" android:color="#FF638BD5" />
+                    <item android:offset="0.82" android:color="#FF299F9C" />
+                    <item android:offset="1" android:color="#FF33A377" />
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="39.6"
+                android:centerY="35.3"
+                android:gradientRadius="41">
+                <item android:offset="0" android:color="#6BFFFFFF" />
+                <item android:offset="1" android:color="#00FFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

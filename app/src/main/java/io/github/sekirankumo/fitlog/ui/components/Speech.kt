@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -182,49 +183,39 @@ private fun VoiceDownloadDialog(engine: SpeechEngine, onReady: () -> Unit, onDis
         if (state == VoiceModelState.Ready) onReady()
     }
     val downloading = state as? VoiceModelState.Downloading
-    AlertDialog(
-        onDismissRequest = { if (downloading == null) onDismiss() },
-        containerColor = c.surface,
-        icon = { Icon(Icons.Filled.Mic, contentDescription = null, tint = c.brand) },
-        title = { Text("开启语音输入") },
-        text = {
-            Column {
-                Text(
-                    "语音识别在手机上离线完成，录音不会上传，也不用 API Key。" +
-                        "第一次使用需要下载语音模型（约 ${engine.modelSizeMb}MB），以后就不用再下载了，建议连上 Wi-Fi。",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                if (downloading != null) {
-                    Spacer(Modifier.height(16.dp))
-                    LinearProgressIndicator(
-                        progress = { downloading.progress },
-                        modifier = Modifier.fillMaxWidth(),
-                        color = c.brand,
-                        trackColor = c.surface2,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text("正在下载 ${(downloading.progress * 100).toInt()}%", style = MaterialTheme.typography.bodySmall, color = c.muted)
-                }
-                (state as? VoiceModelState.Failed)?.let {
-                    Spacer(Modifier.height(12.dp))
-                    Text(it.message, style = MaterialTheme.typography.bodySmall, color = c.danger)
-                }
-            }
+    BSheet(
+        onDismiss = {
+            engine.cancelDownload()
+            onDismiss()
         },
-        confirmButton = {
-            if (downloading == null) {
-                TextButton(onClick = { engine.startDownload() }) {
-                    Text(if (state is VoiceModelState.Failed) "重试" else "下载")
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = {
+        title = "开启语音输入",
+        actions = { s ->
+            BButton("取消", Modifier.weight(1f), kind = ButtonKind.Soft) {
                 engine.cancelDownload()
-                onDismiss()
-            }) { Text("取消") }
+                s.close()
+            }
+            if (downloading == null) {
+                BButton(if (state is VoiceModelState.Failed) "重试" else "下载", Modifier.weight(1f)) { engine.startDownload() }
+            }
         },
-    )
+    ) {
+        Text(
+            "语音识别在手机上离线完成，录音不会上传，也不用 API Key。" +
+                "第一次使用需要下载语音模型（约 ${engine.modelSizeMb}MB），以后就不用再下载了，建议连上 Wi-Fi。",
+            style = Brand.type.body,
+            color = c.text,
+        )
+        if (downloading != null) {
+            Spacer(Modifier.height(16.dp))
+            ProgressLine(downloading.progress, height = 4.dp)
+            Spacer(Modifier.height(6.dp))
+            Text("正在下载 ${(downloading.progress * 100).toInt()}%", style = Brand.type.note, color = c.muted)
+        }
+        (state as? VoiceModelState.Failed)?.let {
+            Spacer(Modifier.height(12.dp))
+            Text(it.message, style = Brand.type.note, color = c.danger)
+        }
+    }
 }
 
 /** 录音面板：实时显示识别出的文字和声波，点「说完了」结束 */
@@ -262,11 +253,7 @@ private fun VoiceListenSheet(
             onError(e)
         }
     }
-    ModalBottomSheet(
-        onDismissRequest = onCancel,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { !stopping }),
-        containerColor = Brand.colors.surface,
-    ) {
+    BSheet(onDismiss = onCancel, dismissible = !stopping) {
         VoicePanel(
             prompt = prompt,
             text = text,
@@ -294,41 +281,37 @@ fun VoicePanel(
     onFinish: () -> Unit,
 ) {
     val c = Brand.colors
-    Column(
-        Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp).padding(bottom = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(prompt, style = MaterialTheme.typography.bodyMedium, color = c.muted, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(16.dp))
-        Text(
-            text.ifEmpty { if (ready) "请说话…" else "正在准备…" },
-            style = MaterialTheme.typography.titleLarge,
-            color = if (text.isEmpty()) c.muted else c.text,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
-        )
-        Spacer(Modifier.height(20.dp))
-        Box(Modifier.fillMaxWidth().height(56.dp), contentAlignment = Alignment.Center) {
+    Column(Modifier.fillMaxWidth()) {
+        Text(if (ready) "请说话…" else "正在准备…", style = Brand.type.h2, color = c.text)
+        Spacer(Modifier.height(4.dp))
+        Text(prompt, style = Brand.type.label, color = c.muted)
+        Spacer(Modifier.height(18.dp))
+        Box(Modifier.fillMaxWidth().height(48.dp), contentAlignment = Alignment.Center) {
             if (ready) {
-                VoiceWave(levels, c.brand, Modifier.fillMaxWidth().height(56.dp))
+                VoiceWave(levels, c.brand, Modifier.fillMaxWidth().height(48.dp))
             } else {
-                CircularProgressIndicator(Modifier.size(28.dp), color = c.brand, strokeWidth = 3.dp)
+                TypingDots(c.brand)
             }
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text.ifEmpty { " " },
+            style = Brand.type.title.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, lineHeight = 26.sp),
+            color = c.text,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+        )
+        Spacer(Modifier.height(8.dp))
         Text(
             if (stopping) "正在识别最后一句…" else "说完点「说完了」，停顿会自动加逗号",
-            style = MaterialTheme.typography.labelMedium,
+            style = Brand.type.note,
             color = c.muted,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
         Spacer(Modifier.height(20.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Surface(onClick = onCancel, enabled = !stopping, shape = RoundedCornerShape(14.dp), color = c.surface2, modifier = Modifier.weight(1f)) {
-                Text("取消", style = MaterialTheme.typography.labelLarge, color = c.text, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 14.dp))
-            }
-            Surface(onClick = onFinish, enabled = !stopping, shape = RoundedCornerShape(14.dp), color = c.brand, modifier = Modifier.weight(1f)) {
-                Text("说完了", style = MaterialTheme.typography.labelLarge, color = c.onBrand, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 14.dp))
-            }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BButton("取消", Modifier.weight(1f), kind = ButtonKind.Soft, enabled = !stopping, onClick = onCancel)
+            BButton("说完了", Modifier.weight(1f), enabled = !stopping, onClick = onFinish)
         }
     }
 }

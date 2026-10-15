@@ -1,51 +1,67 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.remember
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import io.github.sekirankumo.fitlog.AppContainer
 import io.github.sekirankumo.fitlog.background.PlanGenerateWorker
+import io.github.sekirankumo.fitlog.ui.components.AiOrb
+import io.github.sekirankumo.fitlog.ui.components.AppIcons
+import io.github.sekirankumo.fitlog.ui.components.BButton
+import io.github.sekirankumo.fitlog.ui.components.BCard
+import io.github.sekirankumo.fitlog.ui.components.ChoiceChips
+import io.github.sekirankumo.fitlog.ui.components.Field
+import io.github.sekirankumo.fitlog.ui.components.GroupLabel
+import io.github.sekirankumo.fitlog.ui.components.NumberChoice
+import io.github.sekirankumo.fitlog.ui.components.TrackTopBar
 import io.github.sekirankumo.fitlog.ui.components.pickDate
+import io.github.sekirankumo.fitlog.ui.components.screenPadding
+import io.github.sekirankumo.fitlog.ui.theme.Brand
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 private val GOAL_OPTIONS = listOf("减脂", "增肌", "力量", "塑形", "保持健康")
 private val EQUIPMENT_OPTIONS = listOf("健身房", "家里有哑铃", "徒手", "哑铃 + 弹力带")
+private val START_FORMAT = DateTimeFormatter.ofPattern("M 月 d 日")
 
 /** 生成训练计划：填写目标、频率、器材，交给 AI */
 @Composable
 fun GeneratePlanScreen(container: AppContainer, onDone: () -> Unit) {
+    val c = Brand.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var goal by rememberSaveable { mutableStateOf("减脂") }
@@ -57,6 +73,8 @@ fun GeneratePlanScreen(container: AppContainer, onDone: () -> Unit) {
     var startEpoch by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
     var loaded by rememberSaveable { mutableStateOf(false) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
+    val scroll = rememberScrollState()
+    TrackTopBar(scroll)
 
     // 生成在后台任务里进行：离开页面或切出 App 也会继续，完成后发通知
     val wm = remember { WorkManager.getInstance(context) }
@@ -98,96 +116,103 @@ fun GeneratePlanScreen(container: AppContainer, onDone: () -> Unit) {
         }
     }
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Label("训练目标")
-        ChipRow(GOAL_OPTIONS, goal) { goal = it }
-        Label("每周训练天数")
-        ChipRow((2..6).map { "$it 天" }, "$daysPerWeek 天") { daysPerWeek = it.removeSuffix(" 天").toInt() }
-        Label("每次训练时长")
-        ChipRow(listOf(30, 45, 60, 90).map { "$it 分钟" }, "$minutes 分钟") { minutes = it.removeSuffix(" 分钟").toInt() }
-        Label("计划周期")
-        ChipRow(listOf(4, 6, 8, 12).map { "$it 周" }, "$weeks 周") { weeks = it.removeSuffix(" 周").toInt() }
-        Label("器材")
-        ChipRow(EQUIPMENT_OPTIONS, equipment) { equipment = it }
-        OutlinedTextField(
-            value = equipment,
-            onValueChange = { equipment = it },
-            label = { Text("也可以自己描述器材") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-        )
-        OutlinedTextField(
-            value = notes,
-            onValueChange = { notes = it },
-            label = { Text("伤病、偏好等（可选）") },
-            placeholder = { Text("例如：左膝不好，避免跳跃；想多练臀腿") },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 2,
-        )
-        OutlinedButton(onClick = { pickDate(context, LocalDate.ofEpochDay(startEpoch)) { startEpoch = it.toEpochDay() } }) {
-            Text("开始日期：${LocalDate.ofEpochDay(startEpoch)}")
+    Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(screenPadding(extraBottom = 32.dp))) {
+        GroupLabel("训练目标", first = true)
+        ChoiceChips(GOAL_OPTIONS.map { it to it }, goal, { goal = it })
+
+        GroupLabel("每周训练天数")
+        NumberChoice((2..6).toList(), "天", daysPerWeek, { daysPerWeek = it })
+
+        GroupLabel("每次训练时长")
+        NumberChoice(listOf(30, 45, 60, 90), "分钟", minutes, { minutes = it })
+
+        GroupLabel("计划周期")
+        NumberChoice(listOf(4, 6, 8, 12), "周", weeks, { weeks = it })
+
+        GroupLabel("器材")
+        ChoiceChips(EQUIPMENT_OPTIONS.map { it to it }, equipment.takeIf { it in EQUIPMENT_OPTIONS }, { equipment = it })
+        Spacer(Modifier.height(10.dp))
+        Field(equipment, { equipment = it }, placeholder = "也可以自己描述器材")
+
+        GroupLabel("伤病、偏好（可选）")
+        Field(notes, { notes = it }, placeholder = "例如：左膝不好，避免跳跃；想多练臀腿", singleLine = false, minLines = 2)
+
+        Spacer(Modifier.height(14.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(c.surface)
+                .clickable { pickDate(context, LocalDate.ofEpochDay(startEpoch)) { startEpoch = it.toEpochDay() } }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("开始日期", style = Brand.type.bodyMedium, color = c.text, modifier = Modifier.weight(1f))
+            val start = LocalDate.ofEpochDay(startEpoch)
+            Text(
+                if (start == LocalDate.now()) "今天" else start.format(START_FORMAT),
+                style = Brand.type.label,
+                color = c.muted,
+            )
+            Icon(AppIcons.Chevron, contentDescription = null, tint = c.faint, modifier = Modifier.padding(start = 4.dp).size(18.dp))
         }
         Text(
             "生成后会替换开始日期之后的原计划，已完成的训练会保留。生成之后可以在「调整记录」里撤销。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = Brand.type.note,
+            color = c.muted,
+            modifier = Modifier.padding(start = 4.dp, top = 10.dp),
         )
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(
-            enabled = !busy,
-            modifier = Modifier.fillMaxWidth(),
-            onClick = {
-                error = null
-                val args = buildJsonObject {
-                    put("goal", goal)
-                    put("days_per_week", daysPerWeek)
-                    put("weeks", weeks)
-                    put("session_minutes", minutes)
-                    put("equipment", equipment)
-                    put("notes", notes)
-                    put("start_date", LocalDate.ofEpochDay(startEpoch).toString())
-                }
-                // 记住这次的偏好
-                scope.launch {
-                    container.profile.update {
-                        it.copy(trainingDaysPerWeek = daysPerWeek, sessionMinutes = minutes, equipment = equipment)
+        error?.let {
+            Spacer(Modifier.height(10.dp))
+            Text(it, style = Brand.type.label, color = c.danger, modifier = Modifier.padding(start = 4.dp))
+        }
+
+        AnimatedVisibility(busy) {
+            BCard(Modifier.fillMaxWidth().padding(top = 16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AiOrb(40.dp, busy = true, shadow = false)
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "AI 正在排计划" + (progressChars?.takeIf { it > 0 }?.let { " · 已生成 $it 字" } ?: "…"),
+                            style = Brand.type.bodyMedium,
+                            color = c.text,
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            "一般需要半分钟到两分钟。可以先去做别的，切出 App 也会继续生成，好了会发通知。",
+                            style = Brand.type.note,
+                            color = c.muted,
+                        )
                     }
                 }
-                workId = PlanGenerateWorker.enqueue(context.applicationContext, args.toString()).toString()
-            },
-        ) {
-            if (busy) {
-                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                Text(
-                    "  AI 正在排计划…" + (progressChars?.takeIf { it > 0 }?.let { "已生成 $it 字" } ?: "")
-                )
-            } else {
-                Text("生成计划")
             }
         }
-        if (busy) {
-            Text(
-                "一般需要半分钟到两分钟。可以先去做别的，切出 App 也会继续生成，好了会发通知。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+
+        Spacer(Modifier.height(18.dp))
+        BButton(
+            if (busy) "生成中…" else "生成计划",
+            Modifier.fillMaxWidth(),
+            height = 50.dp,
+            enabled = !busy,
+        ) {
+            error = null
+            val args = buildJsonObject {
+                put("goal", goal)
+                put("days_per_week", daysPerWeek)
+                put("weeks", weeks)
+                put("session_minutes", minutes)
+                put("equipment", equipment)
+                put("notes", notes)
+                put("start_date", LocalDate.ofEpochDay(startEpoch).toString())
+            }
+            // 记住这次的偏好
+            scope.launch {
+                container.profile.update {
+                    it.copy(trainingDaysPerWeek = daysPerWeek, sessionMinutes = minutes, equipment = equipment)
+                }
+            }
+            workId = PlanGenerateWorker.enqueue(context.applicationContext, args.toString()).toString()
         }
-    }
-}
-
-@Composable
-private fun Label(text: String) = Text(text, style = MaterialTheme.typography.titleSmall)
-
-@Composable
-private fun ChipRow(options: List<String>, selected: String, onSelect: (String) -> Unit) {
-    Row(
-        Modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        options.forEach { o -> FilterChip(selected = o == selected, onClick = { onSelect(o) }, label = { Text(o) }, colors = chipColors()) }
     }
 }

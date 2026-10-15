@@ -58,9 +58,10 @@ fun TrendChart(points: List<ChartPoint>, modifier: Modifier = Modifier) {
 
     val sorted = points.sortedBy { it.time }
     val avg = movingAverage(sorted, windowMs = 7L * 24 * 3600 * 1000)
-    val raw = io.github.sekirankumo.fitlog.ui.theme.Brand.colors.muted.copy(alpha = 0.45f)
+    val raw = io.github.sekirankumo.fitlog.ui.theme.Brand.colors.faint
     val main = io.github.sekirankumo.fitlog.ui.theme.Brand.colors.brand
     val grid = io.github.sekirankumo.fitlog.ui.theme.Brand.colors.line
+    val surface = io.github.sekirankumo.fitlog.ui.theme.Brand.colors.surface
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 11.sp, color = labelColor)
@@ -104,19 +105,29 @@ fun TrendChart(points: List<ChartPoint>, modifier: Modifier = Modifier) {
         sorted.forEachIndexed { i, p ->
             if (i == 0) rawPath.moveTo(x(p.time), y(p.value)) else rawPath.lineTo(x(p.time), y(p.value))
         }
-        drawPath(rawPath, raw, style = Stroke(width = 1.5.dp.toPx()))
+        drawPath(rawPath, raw, style = Stroke(width = 1.2.dp.toPx()))
         sorted.forEach { p -> drawCircle(raw, radius = 2.5.dp.toPx(), center = Offset(x(p.time), y(p.value))) }
 
-        // 移动平均
+        // 移动平均：粗线，下面一层从上往下变淡的面积
         val avgPath = Path()
         avg.forEachIndexed { i, p ->
             if (i == 0) avgPath.moveTo(x(p.time), y(p.value)) else avgPath.lineTo(x(p.time), y(p.value))
         }
+        val area = Path().apply {
+            addPath(avgPath)
+            lineTo(x(avg.last().time), bottom)
+            lineTo(x(avg.first().time), bottom)
+            close()
+        }
+        drawPath(area, androidx.compose.ui.graphics.Brush.verticalGradient(listOf(main.copy(alpha = 0.18f), main.copy(alpha = 0f)), startY = top, endY = bottom))
         drawPath(
             avgPath,
             main,
             style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
         )
+        val end = Offset(x(avg.last().time), y(avg.last().value))
+        drawCircle(surface, 6.dp.toPx(), end)
+        drawCircle(main, 4.5.dp.toPx(), end)
         }
     }
 }

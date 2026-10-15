@@ -1,50 +1,40 @@
 package io.github.sekirankumo.fitlog.ui.components
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.HelpOutline
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.sekirankumo.fitlog.data.diet.DayQuality
 import io.github.sekirankumo.fitlog.data.diet.FoodGroup
 import io.github.sekirankumo.fitlog.data.diet.GroupScore
@@ -61,273 +51,251 @@ fun QualityZone.color(): Color = when (this) {
     QualityZone.Poor -> Brand.colors.danger
 }
 
-/**
- * 分段刻度条：底轨按 0–15、15–23、23–49 分成三段（段间的小缺口就是及格线和良好线），
- * 从左往右填到当前分数，填充色跟着所在区间变。和营养素进度条是同一种读法。
- * @param score 为 null 时只画底轨（没有记录或还在分析）
- */
+/** 今日页的一行：「膳食质量」+ 刻度 + 分数和区间 */
 @Composable
-fun QualityBar(score: Double?, modifier: Modifier = Modifier, height: Dp = 6.dp) {
-    val c = Brand.colors
-    val target = score?.coerceIn(0.0, DayQuality.MAX) ?: 0.0
-    val animated = animatedValue(target.toFloat(), "quality")
-    val zoneColor = score?.let { DayQuality.zoneOf(it).color() } ?: c.surface2
-    val fill by animateColorAsState(zoneColor, tween(Motion.MEDIUM), label = "qualityColor")
-    val bounds = listOf(0.0, DayQuality.FAIR_FROM, DayQuality.GOOD_FROM, DayQuality.MAX)
-    Canvas(modifier.fillMaxWidth().height(height)) {
-        val gap = 3.dp.toPx()
-        val usable = size.width - gap * 2
-        val r = CornerRadius(size.height / 2)
-        var x = 0f
-        for (i in 0 until 3) {
-            val from = bounds[i]
-            val to = bounds[i + 1]
-            val w = (usable * ((to - from) / DayQuality.MAX)).toFloat()
-            drawRoundRect(c.surface2, topLeft = Offset(x, 0f), size = Size(w, size.height), cornerRadius = r)
-            val part = ((animated - from) / (to - from)).coerceIn(0.0, 1.0).toFloat()
-            if (score != null && part > 0f) {
-                drawRoundRect(fill, topLeft = Offset(x, 0f), size = Size(w * part, size.height), cornerRadius = r)
-            }
-            x += w + gap
-        }
-    }
-}
-
-/** 今日页饮食卡片里的一行：和蛋白质、脂肪、碳水同样的样式 */
-@Composable
-fun QualityRow(quality: DayQuality?, modifier: Modifier = Modifier) {
+fun QualityRow(quality: DayQuality?, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     val c = Brand.colors
     val ready = quality != null && quality.analyzed > 0
-    Column(modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(if (ready) quality!!.zone.color() else c.line))
-            Spacer(Modifier.width(6.dp))
-            Text("膳食质量", style = MaterialTheme.typography.labelMedium, color = c.muted, modifier = Modifier.weight(1f))
-            when {
-                quality == null -> Text("还没有记录", style = MaterialTheme.typography.labelMedium, color = c.muted)
-                !ready -> Text("分析中", style = MaterialTheme.typography.labelMedium, color = c.muted)
-                else -> {
-                    AnimatedNumber(formatScore(quality!!.total), style = MaterialTheme.typography.titleSmall, color = c.text)
-                    Text(" / 49 · ", style = MaterialTheme.typography.labelMedium, color = c.muted)
-                    Text(quality.zone.label, style = MaterialTheme.typography.labelMedium, color = quality.zone.color(), fontWeight = FontWeight.SemiBold)
-                }
+    Row(
+        modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).clickable(onClick = onClick) else Modifier),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text("膳食质量", style = Brand.type.label, color = c.muted)
+        QualityRail(if (ready) quality!!.total else null, Modifier.weight(1f))
+        when {
+            quality == null -> Text("还没有记录", style = Brand.type.label, color = c.muted)
+            !ready -> Text("分析中", style = Brand.type.label, color = c.muted)
+            else -> Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                AnimatedNumber(formatScore(quality!!.total), Brand.type.n2, c.text)
+                Text(quality.zone.label, style = Brand.type.labelBold, color = quality.zone.color(), modifier = Modifier.padding(bottom = 2.dp))
             }
         }
-        Spacer(Modifier.height(5.dp))
-        QualityBar(if (ready) quality!!.total else null)
     }
 }
 
+/** 标签上显示的一类：几类相近的食物合在一起（水果、蔬菜、奶），植物油不单独显示 */
+private class DisplayGroup(val name: String, val groups: List<GroupScore>) {
+    val points = groups.sumOf { it.points }
+    val max = groups.sumOf { it.group.maxPoints }
+    val grams = groups.sumOf { it.grams }
+}
+
+private class GroupedQuality(val good: List<DisplayGroup>, val less: List<DisplayGroup>, val more: List<DisplayGroup>)
+
+private fun group(quality: DayQuality): GroupedQuality {
+    val by = quality.groups.associateBy { it.group }
+    fun g(name: String, vararg keys: FoodGroup) = DisplayGroup(name, keys.mapNotNull { by[it] })
+    val healthy = listOf(
+        g("豆类", FoodGroup.Legumes),
+        g("全谷物", FoodGroup.WholeGrains),
+        g("禽肉", FoodGroup.Poultry),
+        g("鱼虾", FoodGroup.Fish),
+        g("蛋", FoodGroup.Eggs),
+        g("奶", FoodGroup.LowFatDairy, FoodGroup.HighFatDairy),
+        g("深绿叶菜", FoodGroup.DarkLeafy),
+        g("蔬菜", FoodGroup.Cruciferous, FoodGroup.OrangeVeg, FoodGroup.OtherVeg, FoodGroup.OrangeTuber),
+        g("坚果", FoodGroup.Nuts),
+        g("水果", FoodGroup.Citrus, FoodGroup.OrangeFruit, FoodGroup.OtherFruit),
+    )
+    // 吃超了才算问题：不健康的吃到第二档以上，红肉、全脂奶吃过量
+    val less = buildList {
+        quality.groups.filter { it.group.kind == FoodGroup.Kind.Unhealthy && it.band > 0 }.forEach {
+            add(DisplayGroup(if (it.group == FoodGroup.RefinedGrains) "精制米面" else it.group.short, listOf(it)))
+        }
+        quality.groups.filter { it.group.kind == FoodGroup.Kind.Moderate && it.grams > 0 && it.band == it.group.points.size - 1 }.forEach {
+            add(DisplayGroup(if (it.group == FoodGroup.HighFatDairy) "全脂奶" else it.group.short, listOf(it)))
+        }
+    }
+    val good = healthy.filter { it.points > 0 }
+    // 多吃一点就能加分的，按能加的分排，最多 4 个
+    val more = healthy.filter { it.points == 0.0 }
+        .mapNotNull { d -> d.groups.mapNotNull { it.nextStep }.filter { it.first <= 150 }.maxByOrNull { it.second }?.let { d to it.second } }
+        .sortedByDescending { it.second }
+        .take(4)
+        .map { it.first }
+    return GroupedQuality(good, less, more)
+}
+
 /**
- * 饮食页的膳食质量卡片：分数 + 分段刻度条 + 25 类食物拼图 + 提分建议。
- * @param weekAverage 本周有记录的日子的平均分
+ * 饮食页的膳食质量卡片：分数 + 区间、本周平均和比昨天、刻度，下面三组标签（没有的组不显示），
+ * 点标签看这一类吃了多少、怎么加分。
+ * @param yesterday 前一天的分数，用来显示「比昨天」
  * @param backfill 后台正在补算历史记录的进度
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DietQualityCard(
     quality: DayQuality?,
     weekAverage: Double?,
+    yesterday: Double?,
     backfill: Pair<Int, Int>?,
     modifier: Modifier = Modifier,
 ) {
     val c = Brand.colors
-    var selected by rememberSaveable { mutableStateOf<String?>(null) }
+    var detail by remember { mutableStateOf<String?>(null) }
     var showInfo by remember { mutableStateOf(false) }
     val ready = quality != null && quality.analyzed > 0
+    val grouped = remember(quality) { quality?.takeIf { ready }?.let(::group) }
     BCard(modifier.fillMaxWidth()) {
         Column(Modifier.animateContentSize(tween(Motion.LONG, easing = Motion.Emphasized))) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("膳食质量", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                weekAverage?.let {
-                    Text("本周平均 ${formatScore(it)}", style = MaterialTheme.typography.labelMedium, color = c.muted)
+            CardHeader("膳食质量") { InfoButton { showInfo = true } }
+            if (!ready) {
+                Spacer(Modifier.height(8.dp))
+                Text(if (quality == null) "这天还没有记录" else "正在分析这天的饮食…", style = Brand.type.label, color = c.muted)
+            } else {
+                val q = quality!!
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+                        AnimatedNumber(formatScore(q.total), Brand.type.n1, c.text)
+                        Text(q.zone.label, style = Brand.type.labelBold, color = q.zone.color(), modifier = Modifier.padding(bottom = 4.dp))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                        weekAverage?.let { SmallStat("本周平均", formatScore(it), c.text) }
+                        yesterday?.let { y ->
+                            val d = q.total - y
+                            SmallStat("比昨天", (if (d >= 0) "+" else "−") + formatScore(kotlin.math.abs(d)), if (d >= 0) c.brand else c.warn)
+                        }
+                    }
                 }
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(verticalAlignment = Alignment.Bottom) {
-                if (ready) {
-                    AnimatedNumber(
-                        formatScore(quality!!.total),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = c.text,
-                        fontWeight = FontWeight.ExtraBold,
-                    )
-                    Text(" / 49", style = MaterialTheme.typography.bodyMedium, color = c.muted, modifier = Modifier.padding(bottom = 4.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        quality.zone.label,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = quality.zone.color(),
-                        modifier = Modifier.padding(bottom = 4.dp),
-                    )
-                } else {
-                    Text(
-                        if (quality == null) "这天还没有记录" else "正在分析这天的饮食…",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = c.muted,
-                    )
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            QualityBar(if (ready) quality!!.total else null, height = 8.dp)
-
-            if (ready) {
                 Spacer(Modifier.height(16.dp))
-                FoodMosaic(quality!!.groups, selected) { key -> selected = if (selected == key) null else key }
-                Spacer(Modifier.height(12.dp))
-                val focus = quality.groups.firstOrNull { it.group.key == selected }
-                if (focus != null) {
-                    GroupDetail(focus)
-                } else {
-                    quality.suggestion?.let { (g, step) ->
+                // 刻度：23 分以上是「良好」区间，下面标出 23
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val x = maxWidth * (DayQuality.GOOD_FROM / DayQuality.MAX).toFloat()
+                    Column {
+                        QualityRail(q.total, height = 4.dp, pin = 14.dp, pinBorder = c.surface)
                         Text(
-                            "💡 再吃 ${step.first.fmt(0)}g ${g.group.label} → +${formatScore(step.second)} 分",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = c.text,
+                            "23",
+                            style = Brand.type.nSub2,
+                            color = c.muted,
+                            modifier = Modifier.offset(x = x - 6.dp).padding(top = 4.dp),
                         )
-                    } ?: Text("点格子可以看每类食物吃了多少、得了几分", style = MaterialTheme.typography.bodySmall, color = c.muted)
+                    }
+                }
+                grouped?.let { g ->
+                    Spacer(Modifier.height(10.dp))
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
+                    Spacer(Modifier.height(14.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(Triple("做得好", g.good, TagKind.Good), Triple("少吃点", g.less, TagKind.Less), Triple("可以多吃", g.more, TagKind.More))
+                            .filter { it.second.isNotEmpty() }
+                            .forEach { (label, items, kind) ->
+                                Row {
+                                    Text(label, style = Brand.type.label, color = c.muted, modifier = Modifier.width(60.dp).padding(top = 4.dp))
+                                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        items.forEach { d -> Tag(d.name, kind = kind, onClick = { detail = d.name }) }
+                                    }
+                                }
+                            }
+                    }
                 }
             }
-
             val pendingText = when {
                 backfill != null -> "正在分析历史记录 ${backfill.first}/${backfill.second}"
                 quality != null && quality.pending > 0 && quality.analyzed > 0 -> "还有 ${quality.pending} 条记录正在分析，分数会再更新"
                 else -> null
             }
             pendingText?.let {
-                Spacer(Modifier.height(8.dp))
-                Text(it, style = MaterialTheme.typography.labelSmall, color = c.muted)
-            }
-
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "基于全球膳食质量评分（GDQS）· ≥23 分为良好",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = c.muted,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    Icons.AutoMirrored.Outlined.HelpOutline,
-                    contentDescription = "膳食分说明",
-                    tint = c.muted,
-                    modifier = Modifier.size(28.dp).clip(CircleShape).clickable { showInfo = true }.padding(5.dp),
-                )
+                Spacer(Modifier.height(10.dp))
+                Text(it, style = Brand.type.note, color = c.muted)
             }
         }
     }
-    if (showInfo) QualityInfoDialog { showInfo = false }
+    if (showInfo) QualityInfoSheet { showInfo = false }
+    val g = grouped
+    val name = detail
+    if (g != null && name != null) {
+        val d = (g.good + g.less + g.more).firstOrNull { it.name == name }
+        if (d != null) GroupDetailSheet(d) { detail = null }
+    }
 }
 
-/** 25 类食物拼成 5×5 的格子：拿到分的健康食物亮绿色，吃超了的不健康食物变红 */
 @Composable
-private fun FoodMosaic(groups: List<GroupScore>, selected: String?, onSelect: (String) -> Unit) {
+private fun SmallStat(label: String, value: String, color: Color) {
+    Column(horizontalAlignment = Alignment.End) {
+        Text(label, style = Brand.type.label, color = Brand.colors.muted)
+        Spacer(Modifier.height(2.dp))
+        Text(value, style = Brand.type.nSub1.copy(fontWeight = FontWeight.SemiBold), color = color)
+    }
+}
+
+/** 圆圈里一个 i：点开看说明 */
+@Composable
+fun InfoButton(onClick: () -> Unit) {
     val c = Brand.colors
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        groups.chunked(5).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                row.forEach { g ->
-                    val (bg, fg) = tileColors(g)
-                    val bgAnim by animateColorAsState(bg, tween(Motion.MEDIUM), label = "tile")
-                    val isSel = selected == g.group.key
-                    Box(
-                        Modifier
-                            .weight(1f)
-                            .height(42.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(bgAnim)
-                            .then(if (isSel) Modifier.border(1.5.dp, c.text, RoundedCornerShape(10.dp)) else Modifier)
-                            .clickable { onSelect(g.group.key) },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            g.group.short,
-                            fontSize = 11.sp,
-                            lineHeight = 13.sp,
-                            color = fg,
-                            fontWeight = if (bg == c.surface2) FontWeight.Normal else FontWeight.SemiBold,
-                            textAlign = TextAlign.Center,
-                            maxLines = 2,
-                            modifier = Modifier.padding(horizontal = 2.dp),
-                        )
+    Box(
+        Modifier
+            .size(30.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = "说明" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.size(18.dp).border(1.2.dp, c.muted, CircleShape), contentAlignment = Alignment.Center) {
+            Text("i", style = Brand.type.note.copy(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic), color = c.muted)
+        }
+    }
+}
+
+/** 点了某个标签后：这一类吃了多少克、得了几分、怎么加分 */
+@Composable
+private fun GroupDetailSheet(d: DisplayGroup, onDismiss: () -> Unit) {
+    val c = Brand.colors
+    BSheet(
+        onDismiss = onDismiss,
+        title = d.name,
+        subtitle = "已吃 ${d.grams.fmt(0)}g · ${formatScore(d.points)}/${formatScore(d.max)} 分",
+        actions = { s -> BButton("知道了", Modifier.weight(1f), kind = ButtonKind.Soft) { s.close() } },
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val shown = if (d.groups.size > 1) d.groups.filter { it.grams > 0 || it.nextStep != null } else d.groups
+            shown.forEach { g ->
+                Column {
+                    if (d.groups.size > 1) {
+                        Text("${g.group.label} · 已吃 ${g.grams.fmt(0)}g · ${formatScore(g.points)}/${formatScore(g.group.maxPoints)} 分", style = Brand.type.bodyMedium, color = c.text)
+                        Spacer(Modifier.height(2.dp))
                     }
+                    Text(tipOf(g), style = Brand.type.body, color = if (d.groups.size > 1) c.muted else c.text)
+                    Text(g.group.examples.substringBefore("（"), style = Brand.type.note, color = c.muted, modifier = Modifier.padding(top = 2.dp))
                 }
             }
+            Text("克数由 AI 根据记录里的食材估算，记录里可以修改。", style = Brand.type.note, color = c.muted)
         }
     }
 }
 
-/** 格子颜色：背景色和文字色 */
+private fun tipOf(g: GroupScore): String = when (g.group.kind) {
+    FoodGroup.Kind.Unhealthy -> when (g.band) {
+        0 -> "控制得很好"
+        // 回到第一档要严格少于第一个边界，回到中间档只要不超过上边界
+        1 -> "少于 ${g.group.cutoffs[0].fmt(0)}g 可得 ${formatScore(g.group.points[0])} 分"
+        else -> "不超过 ${g.group.cutoffs[g.band - 1].fmt(0)}g 可得 ${formatScore(g.group.points[g.band - 1])} 分"
+    }
+    else -> g.nextStep?.let { (need, gain) -> "再吃 ${need.fmt(0)}g 可 +${formatScore(gain)} 分" }
+        ?: if (g.group.kind == FoodGroup.Kind.Moderate && g.band == g.group.points.size - 1) "吃得有点多了，适量就好" else "已拿满分"
+}
+
 @Composable
-private fun tileColors(g: GroupScore): Pair<Color, Color> {
+fun QualityInfoSheet(onDismiss: () -> Unit) {
     val c = Brand.colors
-    val light = lerp(c.surface2, c.brand, 0.32f)
-    return when (g.group.kind) {
-        FoodGroup.Kind.Healthy -> when {
-            g.points >= g.group.maxPoints -> c.brand to c.onBrand
-            g.points > 0 -> light to c.text
-            else -> c.surface2 to c.muted
-        }
-        FoodGroup.Kind.Moderate -> when {
-            g.grams <= 0 -> c.surface2 to c.muted
-            g.points >= g.group.maxPoints -> c.brand to c.onBrand
-            g.points > 0 -> light to c.text
-            // 吃超了才算问题，吃得少只是没拿到分
-            g.band == g.group.points.size - 1 -> c.dangerSoft to c.danger
-            else -> c.surface2 to c.muted
-        }
-        FoodGroup.Kind.Unhealthy -> when (g.band) {
-            0 -> c.surface2 to c.muted
-            1 -> lerp(c.surface, c.warn, 0.22f) to c.warn
-            else -> c.dangerSoft to c.danger
-        }
+    BSheet(
+        onDismiss = onDismiss,
+        title = "膳食分怎么算",
+        actions = { s -> BButton("知道了", Modifier.weight(1f), kind = ButtonKind.Soft) { s.close() } },
+    ) {
+        Text(
+            "采用国际通用的全球膳食质量评分（GDQS），按一天里 25 类食物各吃了多少克打分，满分 49：\n\n" +
+                "· 蔬菜、水果、豆类、坚果、全谷物、鱼、禽、蛋、低脂奶等 16 类健康食物，吃到一定量就加分；\n" +
+                "· 红肉、全脂奶适量加分，吃太多不给分；\n" +
+                "· 加工肉、精制米面、甜食、含糖饮料、果汁、土豆类、外购油炸食品，吃得越少分越高。\n\n" +
+                "23 分以上营养不足和慢性病风险都较低，15–23 分一般，15 分以下需要改进。",
+            style = Brand.type.body,
+            color = c.text,
+        )
+        Spacer(Modifier.height(10.dp))
+        Text("食材和克数由 AI 根据你的记录估算，看趋势更有参考价值；记录里可以修改。", style = Brand.type.note, color = c.muted)
     }
-}
-
-/** 点了某一格后显示的明细 */
-@Composable
-private fun GroupDetail(g: GroupScore) {
-    val c = Brand.colors
-    val head = "${g.group.label} · 已吃 ${g.grams.fmt(0)}g · ${formatScore(g.points)}/${formatScore(g.group.maxPoints)} 分"
-    val tip = when (g.group.kind) {
-        FoodGroup.Kind.Unhealthy -> when (g.band) {
-            0 -> "控制得很好"
-            // 回到第一档要严格少于第一个边界，回到中间档只要不超过上边界
-            1 -> "少于 ${g.group.cutoffs[0].fmt(0)}g 可得 ${formatScore(g.group.points[0])} 分"
-            else -> "不超过 ${g.group.cutoffs[g.band - 1].fmt(0)}g 可得 ${formatScore(g.group.points[g.band - 1])} 分"
-        }
-        else -> g.nextStep?.let { (need, gain) -> "再吃 ${need.fmt(0)}g 可 +${formatScore(gain)} 分" }
-            ?: if (g.group.kind == FoodGroup.Kind.Moderate && g.band == g.group.points.size - 1) "吃得有点多了，适量就好" else "已拿满分"
-    }
-    Column {
-        Text(head, style = MaterialTheme.typography.bodyMedium, color = c.text)
-        Text("${g.group.examples.substringBefore("（")} · $tip", style = MaterialTheme.typography.bodySmall, color = c.muted)
-    }
-}
-
-@Composable
-private fun QualityInfoDialog(onDismiss: () -> Unit) {
-    val c = Brand.colors
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = c.surface,
-        title = { Text("膳食分怎么算") },
-        text = {
-            Text(
-                "采用国际通用的全球膳食质量评分（GDQS），按一天里 25 类食物各吃了多少克打分，满分 49：\n\n" +
-                    "· 蔬菜、水果、豆类、坚果、全谷物、鱼、禽、蛋、低脂奶等 16 类健康食物，吃到一定量就加分；\n" +
-                    "· 红肉、全脂奶适量加分，吃太多不给分；\n" +
-                    "· 加工肉、精制米面、甜食、含糖饮料、果汁、土豆类、外购油炸食品，吃得越少分越高。\n\n" +
-                    "23 分以上营养不足和慢性病风险都较低，15–23 分一般，15 分以下需要改进。\n\n" +
-                    "食材和克数由 AI 根据你的记录估算，看趋势更有参考价值；记录里可以修改。",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("知道了") } },
-    )
-}
-
-/** 高盐提醒：只是个红色小标签，不弹窗、不拦截 */
-@Composable
-fun HighSaltTag() {
-    Pill("高盐", color = Brand.colors.danger, background = Brand.colors.dangerSoft)
 }
