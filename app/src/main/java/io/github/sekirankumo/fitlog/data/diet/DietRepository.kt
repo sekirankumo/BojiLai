@@ -24,6 +24,7 @@ fun FoodEntry.describe(): String = buildString {
     amount?.let { append("（$it）") }
     grams?.let { append(" ${it.fmt(0)}g") }
     append(" ${kcal.fmt(0)}kcal 蛋白${proteinG.fmt()}g 脂肪${fatG.fmt()}g 碳水${carbsG.fmt()}g")
+    if (highSalt == true) append("（高盐）")
 }
 
 class DietRepository(private val dao: FoodDao) {
@@ -56,6 +57,8 @@ class DietRepository(private val dao: FoodDao) {
                 carbsG = e.carbsG,
                 useCount = (existing?.useCount ?: 0) + 1,
                 lastUsedAt = System.currentTimeMillis(),
+                components = e.components,
+                highSalt = e.highSalt,
             )
         )
     }

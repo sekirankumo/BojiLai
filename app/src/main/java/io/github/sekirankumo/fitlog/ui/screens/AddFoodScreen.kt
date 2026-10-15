@@ -1,5 +1,7 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import androidx.compose.ui.text.style.TextOverflow
+import io.github.sekirankumo.fitlog.ui.components.HighSaltTag
 import io.github.sekirankumo.fitlog.ui.components.itemMotion
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -298,11 +300,19 @@ fun AddFoodScreen(
             items(drafts, key = { it.key }) { d ->
                 BCard(itemMotion()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            d.name.ifBlank { "新食物" },
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.weight(1f),
-                        )
+                        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                d.name.ifBlank { "新食物" },
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            if (d.highSalt) {
+                                Spacer(Modifier.width(6.dp))
+                                HighSaltTag()
+                            }
+                        }
                         Text("${d.kcal.fmt(0)} kcal", style = MaterialTheme.typography.titleMedium, color = c.brand)
                         IconButton(onClick = { drafts.remove(d) }) {
                             Icon(Icons.Filled.DeleteOutline, contentDescription = "删除这一项", tint = c.muted)

@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import io.github.sekirankumo.fitlog.data.diet.DayQuality
 import io.github.sekirankumo.fitlog.ui.components.BottomBarSpace
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -97,7 +98,16 @@ fun TodayScreen(container: AppContainer, nav: TodayNav) {
             }
         }
 
-        item { NutritionSummary(DayTotals.of(food), targets, onClick = nav.openDiet, onCompleteProfile = nav.completeProfile) }
+        item {
+            NutritionSummary(
+                DayTotals.of(food),
+                targets,
+                onClick = nav.openDiet,
+                onCompleteProfile = nav.completeProfile,
+                showQuality = true,
+                quality = remember(food) { DayQuality.of(food) },
+            )
+        }
 
         item { TrainingCard(container, plan, training, nav.openTraining) }
 

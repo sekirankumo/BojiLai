@@ -49,6 +49,10 @@ data class FoodEntry(
     /** ai / manual / favorite */
     val source: String = "manual",
     val note: String? = null,
+    /** 食材和膳食分类（JSON，见 FoodComponent）；还没分析时为 null，后台会自动补上 */
+    val components: String? = null,
+    /** 是否高盐：只做提醒，不参与膳食分；null 表示还没分析 */
+    val highSalt: Boolean? = null,
 )
 
 /** 常吃的食物，一键记录 */
@@ -65,6 +69,10 @@ data class FavoriteFood(
     val carbsG: Double,
     val useCount: Int = 0,
     val lastUsedAt: Long = 0,
+    /** 食材和膳食分类（JSON，见 FoodComponent）；还没分析时为 null，后台会自动补上 */
+    val components: String? = null,
+    /** 是否高盐：只做提醒，不参与膳食分；null 表示还没分析 */
+    val highSalt: Boolean? = null,
 )
 
 @Dao
@@ -98,6 +106,26 @@ interface FoodDao {
 
     @Query("DELETE FROM food_entry")
     suspend fun clear()
+
+    // ---- 膳食分析（后台补算食材分类和高盐标记） ----
+
+    @Query("SELECT * FROM food_entry WHERE components IS NULL ORDER BY eatenAt DESC LIMIT :limit")
+    suspend fun pendingEntries(limit: Int): List<FoodEntry>
+
+    @Query("SELECT COUNT(*) FROM food_entry WHERE components IS NULL")
+    fun observePendingCount(): Flow<Int>
+
+    @Query("UPDATE food_entry SET components = :components, highSalt = :highSalt WHERE id = :id")
+    suspend fun setAnalysis(id: Long, components: String, highSalt: Boolean)
+
+    @Query("SELECT * FROM favorite_food WHERE components IS NULL LIMIT :limit")
+    suspend fun pendingFavorites(limit: Int): List<FavoriteFood>
+
+    @Query("SELECT COUNT(*) FROM favorite_food WHERE components IS NULL")
+    fun observePendingFavoriteCount(): Flow<Int>
+
+    @Query("UPDATE favorite_food SET components = :components, highSalt = :highSalt WHERE id = :id")
+    suspend fun setFavoriteAnalysis(id: Long, components: String, highSalt: Boolean)
 
     // ---- 常吃 ----
 

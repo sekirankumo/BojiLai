@@ -1,5 +1,8 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import io.github.sekirankumo.fitlog.ui.components.HighSaltTag
 import io.github.sekirankumo.fitlog.ui.components.itemMotion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -44,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import io.github.sekirankumo.fitlog.AppContainer
 import io.github.sekirankumo.fitlog.data.db.FavoriteFood
 import io.github.sekirankumo.fitlog.data.diet.FoodDraft
+import io.github.sekirankumo.fitlog.data.diet.encodeComponents
 import io.github.sekirankumo.fitlog.ui.components.BCard
 import io.github.sekirankumo.fitlog.ui.components.EmptyState
 import io.github.sekirankumo.fitlog.ui.components.FoodDraftEditor
@@ -150,13 +154,19 @@ private fun FavoriteRow(f: FavoriteFood, onClick: () -> Unit) {
     val c = Brand.colors
     BCard(Modifier.fillMaxWidth(), onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                f.name,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    f.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (f.highSalt == true) {
+                    Spacer(Modifier.width(6.dp))
+                    HighSaltTag()
+                }
+            }
             Text("${f.kcal.fmt(0)} kcal", style = MaterialTheme.typography.titleMedium, color = c.brand)
         }
         val portion = listOfNotNull(f.amount, f.grams?.let { "${it.fmt(0)}g" }).joinToString(" · ")
@@ -184,7 +194,8 @@ private fun FavoriteEditDialog(
     onDelete: () -> Unit,
 ) {
     val c = Brand.colors
-    var draft by remember(favorite.id) { mutableStateOf(FoodDraft.fromFavorite(favorite, System.currentTimeMillis())) }
+    val original = remember(favorite.id) { FoodDraft.fromFavorite(favorite, System.currentTimeMillis()) }
+    var draft by remember(favorite.id) { mutableStateOf(original) }
     val name = draft.name.trim()
     val error = when {
         name.isEmpty() -> "名称不能为空"
@@ -214,6 +225,9 @@ private fun FavoriteEditDialog(
                             proteinG = draft.proteinG,
                             fatG = draft.fatG,
                             carbsG = draft.carbsG,
+                            // 改了名字而食材没动过：原来的拆分不再对应，清空后让后台重新分析
+                            components = if (name != favorite.name && draft.components == original.components) null else encodeComponents(draft.components),
+                            highSalt = draft.highSalt,
                         ),
                     )
                 },

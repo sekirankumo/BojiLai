@@ -8,7 +8,9 @@ import io.github.sekirankumo.fitlog.data.db.FavoriteFood
 import io.github.sekirankumo.fitlog.data.db.FoodEntry
 import io.github.sekirankumo.fitlog.data.db.Meal
 import io.github.sekirankumo.fitlog.data.db.PlanDay
+import io.github.sekirankumo.fitlog.data.diet.FoodComponent
 import io.github.sekirankumo.fitlog.data.diet.FoodDraft
+import io.github.sekirankumo.fitlog.data.diet.encodeComponents
 import io.github.sekirankumo.fitlog.data.plan.PlanExercise
 import io.github.sekirankumo.fitlog.data.plan.PlanMeta
 import io.github.sekirankumo.fitlog.data.plan.PlanSet
@@ -53,24 +55,68 @@ object SampleData {
         }
         db.bodyRecordDao().insertAll(body)
 
-        // 今天的饮食
-        fun food(meal: Meal, h: Int, m: Int, name: String, amount: String, g: Double, kcal: Double, p: Double, f: Double, c: Double) =
-            FoodEntry(eatenAt = at(today, h, m), meal = meal.key, name = name, amount = amount, grams = g, kcal = kcal, proteinG = p, fatG = f, carbsG = c, source = "ai")
+        // 饮食：今天的，加上前几天的（日期条上显示每天的膳食分颜色）
+        fun food(
+            meal: Meal, h: Int, m: Int, name: String, amount: String, g: Double, kcal: Double, p: Double, f: Double, c: Double,
+            parts: List<FoodComponent>, salty: Boolean = false, day: LocalDate = today,
+        ) = FoodEntry(
+            eatenAt = at(day, h, m), meal = meal.key, name = name, amount = amount, grams = g, kcal = kcal, proteinG = p, fatG = f, carbsG = c,
+            source = "ai", components = encodeComponents(parts), highSalt = salty,
+        )
+        fun part(name: String, group: String, grams: Double) = FoodComponent(name, group, grams)
+        val d1 = today.minusDays(1)
+        val d2 = today.minusDays(2)
+        val d3 = today.minusDays(3)
         db.foodDao().insertAll(
             listOf(
-                food(Meal.Breakfast, 7, 50, "全麦面包", "2 片", 70.0, 172.0, 8.6, 2.4, 29.0),
-                food(Meal.Breakfast, 7, 50, "水煮蛋", "2 个", 100.0, 144.0, 12.6, 9.6, 1.2),
-                food(Meal.Breakfast, 7, 50, "无糖豆浆", "1 杯", 300.0, 93.0, 8.7, 4.2, 4.5),
-                food(Meal.Lunch, 12, 20, "黄焖鸡", "一份", 250.0, 420.0, 32.0, 24.0, 18.0),
-                food(Meal.Lunch, 12, 20, "米饭", "半碗", 150.0, 174.0, 3.9, 0.5, 38.9),
-                food(Meal.Lunch, 12, 20, "凉拌黄瓜", "一小盘", 100.0, 48.0, 0.9, 3.2, 3.9),
-                food(Meal.Snack, 16, 0, "希腊酸奶", "1 杯", 150.0, 146.0, 13.5, 6.0, 9.0),
+                food(Meal.Breakfast, 7, 50, "全麦面包", "2 片", 70.0, 172.0, 8.6, 2.4, 29.0, listOf(part("全麦面包", "whole_grains", 70.0))),
+                food(Meal.Breakfast, 7, 50, "水煮蛋", "2 个", 100.0, 144.0, 12.6, 9.6, 1.2, listOf(part("鸡蛋", "eggs", 100.0))),
+                food(Meal.Breakfast, 7, 50, "无糖豆浆", "1 杯", 300.0, 93.0, 8.7, 4.2, 4.5, listOf(part("豆浆", "legumes", 300.0))),
+                food(
+                    Meal.Lunch, 12, 20, "黄焖鸡", "一份", 250.0, 420.0, 32.0, 24.0, 18.0,
+                    listOf(part("鸡肉", "poultry", 150.0), part("土豆", "white_tubers", 50.0), part("香菇", "other_veg", 30.0), part("青椒", "other_veg", 20.0), part("植物油", "liquid_oil", 10.0)),
+                    salty = true,
+                ),
+                food(Meal.Lunch, 12, 20, "米饭", "半碗", 150.0, 174.0, 3.9, 0.5, 38.9, listOf(part("米饭", "refined_grains", 150.0))),
+                food(Meal.Lunch, 12, 20, "凉拌黄瓜", "一小盘", 100.0, 48.0, 0.9, 3.2, 3.9, listOf(part("黄瓜", "other_veg", 95.0), part("香油", "liquid_oil", 5.0))),
+                food(Meal.Snack, 16, 0, "希腊酸奶", "1 杯", 150.0, 146.0, 13.5, 6.0, 9.0, listOf(part("希腊酸奶", "high_fat_dairy", 150.0))),
+                // 昨天：吃得很好
+                food(Meal.Breakfast, 8, 0, "燕麦牛奶", "一碗", 300.0, 230.0, 12.0, 4.0, 36.0, listOf(part("燕麦", "whole_grains", 50.0), part("低脂牛奶", "low_fat_dairy", 250.0)), day = d1),
+                food(Meal.Lunch, 12, 30, "清蒸鲈鱼", "半条", 150.0, 165.0, 28.0, 5.0, 1.0, listOf(part("鲈鱼", "fish", 150.0)), day = d1),
+                food(Meal.Lunch, 12, 30, "蒜蓉菠菜", "一盘", 160.0, 90.0, 4.0, 6.0, 5.0, listOf(part("菠菜", "dark_leafy", 150.0), part("植物油", "liquid_oil", 8.0)), day = d1),
+                food(Meal.Snack, 16, 0, "坚果和苹果", "一小把 + 1 个", 220.0, 230.0, 5.0, 12.0, 28.0, listOf(part("混合坚果", "nuts", 20.0), part("苹果", "other_fruit", 200.0)), day = d1),
+                // 前天：泡面加可乐
+                food(
+                    Meal.Dinner, 22, 0, "红烧牛肉面（泡面）", "一桶", 120.0, 520.0, 10.0, 22.0, 70.0,
+                    listOf(part("面饼", "refined_grains", 80.0), part("面饼", "fried", 80.0)), salty = true, day = d2,
+                ),
+                food(Meal.Dinner, 22, 0, "可乐", "一罐", 330.0, 140.0, 0.0, 0.0, 35.0, listOf(part("可乐", "ssb", 330.0)), day = d2),
+                food(Meal.Dinner, 22, 0, "火腿肠", "1 根", 40.0, 110.0, 4.0, 8.0, 5.0, listOf(part("火腿肠", "processed_meat", 40.0)), salty = true, day = d2),
+                // 大前天：一般
+                food(Meal.Breakfast, 8, 0, "豆浆鸡蛋", "1 杯 + 1 个", 350.0, 170.0, 15.0, 9.0, 6.0, listOf(part("豆浆", "legumes", 300.0), part("鸡蛋", "eggs", 50.0)), day = d3),
+                food(
+                    Meal.Lunch, 12, 0, "红烧肉盖饭", "一份", 450.0, 820.0, 22.0, 40.0, 90.0,
+                    listOf(part("红烧肉", "red_meat", 100.0), part("米饭", "refined_grains", 300.0), part("植物油", "liquid_oil", 10.0)), salty = true, day = d3,
+                ),
             )
         )
         listOf(
-            FavoriteFood(name = "鸡胸肉沙拉", amount = "一份", grams = 300.0, kcal = 320.0, proteinG = 35.0, fatG = 12.0, carbsG = 15.0, useCount = 8),
-            FavoriteFood(name = "燕麦牛奶", amount = "一碗", grams = 300.0, kcal = 280.0, proteinG = 12.0, fatG = 8.0, carbsG = 38.0, useCount = 6),
-            FavoriteFood(name = "蛋白粉", amount = "1 勺", grams = 30.0, kcal = 120.0, proteinG = 24.0, fatG = 1.5, carbsG = 3.0, useCount = 5),
+            FavoriteFood(
+                name = "鸡胸肉沙拉", amount = "一份", grams = 300.0, kcal = 320.0, proteinG = 35.0, fatG = 12.0, carbsG = 15.0, useCount = 8,
+                components = encodeComponents(listOf(FoodComponent("鸡胸肉", "poultry", 150.0), FoodComponent("生菜", "other_veg", 100.0), FoodComponent("橄榄油", "liquid_oil", 10.0))),
+                highSalt = false,
+            ),
+            FavoriteFood(
+                name = "燕麦牛奶", amount = "一碗", grams = 300.0, kcal = 280.0, proteinG = 12.0, fatG = 8.0, carbsG = 38.0, useCount = 6,
+                components = encodeComponents(listOf(FoodComponent("燕麦", "whole_grains", 50.0), FoodComponent("牛奶", "high_fat_dairy", 250.0))),
+                highSalt = false,
+            ),
+            FavoriteFood(
+                name = "螺蛳粉", amount = "一碗", grams = 450.0, kcal = 560.0, proteinG = 15.0, fatG = 20.0, carbsG = 80.0, useCount = 3,
+                components = encodeComponents(listOf(FoodComponent("米粉", "refined_grains", 250.0), FoodComponent("炸腐竹", "fried", 20.0), FoodComponent("酸笋", "other_veg", 30.0))),
+                highSalt = true,
+            ),
+            FavoriteFood(name = "蛋白粉", amount = "1 勺", grams = 30.0, kcal = 120.0, proteinG = 24.0, fatG = 1.5, carbsG = 3.0, useCount = 5, components = "[]", highSalt = false),
         ).forEach { db.foodDao().insertFavorite(it) }
 
         // 训练计划：每周一三五六，4 周
@@ -189,9 +235,19 @@ object SampleData {
     fun drafts(): List<FoodDraft> {
         val t = at(today, 18, 40)
         return listOf(
-            FoodDraft(FoodDraft.nextKey(), "番茄牛腩", "一份", 280.0, 392.0, 30.8, 22.4, 16.8, Meal.Dinner, t, confidence = "中"),
-            FoodDraft(FoodDraft.nextKey(), "清炒西兰花", "一盘", 200.0, 118.0, 6.0, 7.6, 9.4, Meal.Dinner, t, confidence = "高"),
-            FoodDraft(FoodDraft.nextKey(), "杂粮饭", "一小碗", 120.0, 151.0, 4.1, 1.0, 31.6, Meal.Dinner, t, confidence = "中", addToFavorites = true),
+            FoodDraft(
+                FoodDraft.nextKey(), "红烧牛腩", "一份", 280.0, 392.0, 30.8, 22.4, 16.8, Meal.Dinner, t, confidence = "中",
+                components = listOf(FoodComponent("牛腩", "red_meat", 120.0), FoodComponent("土豆", "white_tubers", 80.0), FoodComponent("胡萝卜", "orange_veg", 40.0), FoodComponent("植物油", "liquid_oil", 10.0)),
+                highSalt = true,
+            ),
+            FoodDraft(
+                FoodDraft.nextKey(), "清炒西兰花", "一盘", 200.0, 118.0, 6.0, 7.6, 9.4, Meal.Dinner, t, confidence = "高",
+                components = listOf(FoodComponent("西兰花", "cruciferous", 190.0), FoodComponent("植物油", "liquid_oil", 10.0)),
+            ),
+            FoodDraft(
+                FoodDraft.nextKey(), "杂粮饭", "一小碗", 120.0, 151.0, 4.1, 1.0, 31.6, Meal.Dinner, t, confidence = "中", addToFavorites = true,
+                components = listOf(FoodComponent("杂粮饭", "whole_grains", 120.0)),
+            ),
         )
     }
 

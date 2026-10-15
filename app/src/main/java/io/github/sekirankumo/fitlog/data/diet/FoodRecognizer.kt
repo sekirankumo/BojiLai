@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.data.diet
 
+import io.github.sekirankumo.fitlog.assistant.bool
 import io.github.sekirankumo.fitlog.assistant.num
 import io.github.sekirankumo.fitlog.assistant.str
 import io.github.sekirankumo.fitlog.data.ai.AiException
@@ -33,6 +34,10 @@ data class FoodDraft(
     val source: String = "ai",
     /** 当前营养数值对应的克数；输入框清空再输入时仍按它缩放 */
     val refGrams: Double? = grams,
+    /** 拆出来的食材和膳食分类；null 表示还没分析（保存后后台补算） */
+    val components: List<FoodComponent>? = null,
+    /** 是否高盐，只做提醒 */
+    val highSalt: Boolean = false,
 ) {
     /** 修改克数时按比例缩放营养素 */
     fun withGrams(newGrams: Double?): FoodDraft {
@@ -48,6 +53,8 @@ data class FoodDraft(
             proteinG = (proteinG * r).round1(),
             fatG = (fatG * r).round1(),
             carbsG = (carbsG * r).round1(),
+            // 食材的克数一起按比例变
+            components = components?.map { it.copy(grams = (it.grams * r).round1()) },
         )
     }
 
@@ -76,6 +83,8 @@ data class FoodDraft(
         fatG = fatG,
         carbsG = carbsG,
         source = source,
+        components = encodeComponents(components),
+        highSalt = if (components == null && !highSalt) null else highSalt,
     )
 
     companion object {
@@ -94,6 +103,25 @@ data class FoodDraft(
             meal = Meal.byHour(TimeUtil.toLocal(eatenAt).hour),
             eatenAt = eatenAt,
             source = "favorite",
+            components = decodeComponents(f.components),
+            highSalt = f.highSalt == true,
+        )
+
+        /** 已保存的记录转成可编辑的草稿 */
+        fun fromEntry(e: FoodEntry) = FoodDraft(
+            key = e.id,
+            name = e.name,
+            amount = e.amount,
+            grams = e.grams,
+            kcal = e.kcal,
+            proteinG = e.proteinG,
+            fatG = e.fatG,
+            carbsG = e.carbsG,
+            meal = Meal.of(e.meal),
+            eatenAt = e.eatenAt,
+            source = e.source,
+            components = e.componentList,
+            highSalt = e.highSalt == true,
         )
 
         fun blank(eatenAt: Long) = FoodDraft(
@@ -153,7 +181,9 @@ class FoodRecognizer(
             if (photoInfo.isNotEmpty()) appendLine(photoInfo)
             appendLine("用户描述：${text.ifBlank { "（无，请根据照片判断）" }}")
             appendLine()
-            append(INSTRUCTIONS)
+            appendLine(INSTRUCTIONS)
+            appendLine()
+            append(DietPrompt.RULES)
         }
         val message = if (photos.isEmpty()) Msg.user(prompt) else Msg.userWithImages(prompt, photos.map { it.dataUrl })
         val result = client.chat(
@@ -183,6 +213,8 @@ class FoodRecognizer(
                 meal = o.str("meal")?.let { Meal.of(it) } ?: Meal.byHour(TimeUtil.toLocal(time).hour),
                 eatenAt = time,
                 confidence = o.str("confidence"),
+                components = parseComponents(o["components"] as? JsonArray),
+                highSalt = o.bool("high_salt") == true,
             )
         }
         if (items.isEmpty()) throw AiException(root.str("note") ?: "没有识别出食物，可以补充文字描述后再试")
@@ -194,7 +226,7 @@ class FoodRecognizer(
 
         val INSTRUCTIONS = """
             请识别用户吃了哪些食物，每种食物单独一条，估算份量和营养，输出 JSON：
-            {"items":[{"name":"食物名","amount":"份量描述，如一碗/半份/2个","grams":克数,"kcal":热量,"protein_g":蛋白质克,"fat_g":脂肪克,"carbs_g":碳水克,"meal":"breakfast|lunch|dinner|snack","time":"yyyy-MM-dd HH:mm","confidence":"高|中|低"}],"note":"需要提醒用户的地方，没有就留空"}
+            {"items":[{"name":"食物名","amount":"份量描述，如一碗/半份/2个","grams":克数,"kcal":热量,"protein_g":蛋白质克,"fat_g":脂肪克,"carbs_g":碳水克,"meal":"breakfast|lunch|dinner|snack","time":"yyyy-MM-dd HH:mm","confidence":"高|中|低",${DietPrompt.FIELDS}}],"note":"需要提醒用户的地方，没有就留空"}
 
             规则：
             1. 一道菜里有明显不同的部分（如盖饭的米饭和浇头、套餐的主食和配菜）要拆成多条。

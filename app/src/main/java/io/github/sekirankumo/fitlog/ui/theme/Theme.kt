@@ -45,6 +45,8 @@ data class BrandColors(
     val protein: Color,
     val fat: Color,
     val carbs: Color,
+    /** 提醒色（膳食分「一般」区间），和脂肪的金黄色区分开 */
+    val warn: Color,
 )
 
 val LightBrand = BrandColors(
@@ -68,6 +70,7 @@ val LightBrand = BrandColors(
     protein = Color(0xFF2E8B6A),
     fat = Color(0xFFE0A53A),
     carbs = Color(0xFF4F7DC9),
+    warn = Color(0xFFD9822B),
 )
 
 val DarkBrand = BrandColors(
@@ -91,6 +94,7 @@ val DarkBrand = BrandColors(
     protein = Color(0xFF6FD3A9),
     fat = Color(0xFFF2C46B),
     carbs = Color(0xFF8DB2F0),
+    warn = Color(0xFFF0A35E),
 )
 
 val LocalBrand = staticCompositionLocalOf { LightBrand }

@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PlanDay::class,
         KeyValue::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -100,6 +100,15 @@ private val MIGRATIONS = arrayOf(
                     "`value` TEXT NOT NULL, " +
                     "PRIMARY KEY(`key`))"
             )
+        }
+    },
+    // 膳食质量：食材分类和高盐标记，旧记录为 NULL，打开 App 后在后台补算
+    object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `food_entry` ADD COLUMN `components` TEXT")
+            db.execSQL("ALTER TABLE `food_entry` ADD COLUMN `highSalt` INTEGER")
+            db.execSQL("ALTER TABLE `favorite_food` ADD COLUMN `components` TEXT")
+            db.execSQL("ALTER TABLE `favorite_food` ADD COLUMN `highSalt` INTEGER")
         }
     },
 )

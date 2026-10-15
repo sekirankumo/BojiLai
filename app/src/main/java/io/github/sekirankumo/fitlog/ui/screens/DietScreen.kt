@@ -1,5 +1,14 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.border
+import io.github.sekirankumo.fitlog.util.TimeUtil
+import io.github.sekirankumo.fitlog.ui.components.color
+import io.github.sekirankumo.fitlog.ui.components.HighSaltTag
+import io.github.sekirankumo.fitlog.ui.components.DietQualityCard
+import io.github.sekirankumo.fitlog.data.diet.DietRepository
+import io.github.sekirankumo.fitlog.data.diet.DayQuality
 import io.github.sekirankumo.fitlog.ui.components.BottomBarSpace
 import io.github.sekirankumo.fitlog.ui.components.itemMotion
 import androidx.compose.animation.animateContentSize
@@ -93,12 +102,23 @@ fun DietScreen(container: AppContainer, completeProfile: (List<String>) -> Unit,
     val entries = loadedEntries.orEmpty()
     val targets by container.profile.targets.collectAsState(initial = null)
     var editing by remember { mutableStateOf<FoodEntry?>(null) }
+    val monday = day.minusDays((day.dayOfWeek.value - 1).toLong())
+    val weekFlow = remember(monday) {
+        container.database.foodDao().observeRange(DietRepository.dayStart(monday), DietRepository.dayStart(monday.plusDays(7)))
+    }
+    val weekEntries by weekFlow.collectAsState(initial = emptyList())
+    val weekQuality = remember(weekEntries) {
+        weekEntries.groupBy { TimeUtil.toLocal(it.eatenAt).toLocalDate() }.mapValues { DayQuality.of(it.value) }
+    }
+    val weekAverage = weekQuality.values.filterNotNull().filter { it.analyzed > 0 }.map { it.total }.takeIf { it.isNotEmpty() }?.average()
+    val quality = remember(entries) { DayQuality.of(entries) }
+    val backfill by container.dietAnalyzer.progress.collectAsState()
 
     LazyColumn(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp + BottomBarSpace),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item { WeekStrip(day) { dayEpoch = it.toEpochDay() } }
+        item { WeekStrip(day, weekQuality) { dayEpoch = it.toEpochDay() } }
         item {
             NutritionSummary(
                 DayTotals.of(entries),
@@ -126,6 +146,9 @@ fun DietScreen(container: AppContainer, completeProfile: (List<String>) -> Unit,
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = c.onBrand)
                 }
             }
+        }
+        item(key = "quality") {
+            DietQualityCard(quality, weekAverage, backfill)
         }
         if (loadedEntries != null && entries.isEmpty()) {
             item(key = "empty") {
@@ -164,7 +187,20 @@ fun DietScreen(container: AppContainer, completeProfile: (List<String>) -> Unit,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(e.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            e.name,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false),
+                                        )
+                                        if (e.highSalt == true) {
+                                            Spacer(Modifier.width(6.dp))
+                                            HighSaltTag()
+                                        }
+                                    }
                                     Text(
                                         listOfNotNull(
                                             e.amount,
@@ -193,7 +229,7 @@ fun DietScreen(container: AppContainer, completeProfile: (List<String>) -> Unit,
 
 /** 一周的日期条：点日期切换，左右箭头换周，点月份选任意日期 */
 @Composable
-fun WeekStrip(selected: LocalDate, onSelect: (LocalDate) -> Unit) {
+fun WeekStrip(selected: LocalDate, quality: Map<LocalDate, DayQuality?> = emptyMap(), onSelect: (LocalDate) -> Unit) {
     val c = Brand.colors
     val context = LocalContext.current
     val monday = selected.minusDays((selected.dayOfWeek.value - 1).toLong())
@@ -238,9 +274,22 @@ fun WeekStrip(selected: LocalDate, onSelect: (LocalDate) -> Unit) {
                         color = if (isSel) c.onBrand else if (d == today) c.brand else c.text,
                         textAlign = TextAlign.Center,
                     )
-                    Spacer(
-                        Modifier.padding(top = 2.dp).size(4.dp).clip(RoundedCornerShape(2.dp))
-                            .background(if (d == today && !isSel) c.brand else androidx.compose.ui.graphics.Color.Transparent)
+                    // 当天膳食分的区间：绿 / 橙 / 红；还在分析显示空心灰点；没有记录不显示
+                    val q = quality[d]
+                    val dot = when {
+                        q == null -> androidx.compose.ui.graphics.Color.Transparent
+                        q.analyzed == 0 -> null
+                        else -> q.zone.color()
+                    }
+                    Box(
+                        Modifier.padding(top = 3.dp).size(6.dp).clip(CircleShape)
+                            .then(
+                                if (dot == null) {
+                                    Modifier.border(1.dp, if (isSel) c.onBrand.copy(alpha = 0.7f) else c.muted, CircleShape)
+                                } else {
+                                    Modifier.background(if (isSel && dot != androidx.compose.ui.graphics.Color.Transparent) c.onBrand else dot)
+                                },
+                            ),
                     )
                 }
             }
@@ -251,23 +300,8 @@ fun WeekStrip(selected: LocalDate, onSelect: (LocalDate) -> Unit) {
 /** 编辑一条已保存的饮食记录 */
 @Composable
 private fun FoodEntryDialog(container: AppContainer, entry: FoodEntry, onDismiss: () -> Unit) {
-    var draft by remember(entry.id) {
-        mutableStateOf(
-            FoodDraft(
-                key = entry.id,
-                name = entry.name,
-                amount = entry.amount,
-                grams = entry.grams,
-                kcal = entry.kcal,
-                proteinG = entry.proteinG,
-                fatG = entry.fatG,
-                carbsG = entry.carbsG,
-                meal = Meal.of(entry.meal),
-                eatenAt = entry.eatenAt,
-                source = entry.source,
-            )
-        )
-    }
+    val original = remember(entry.id) { FoodDraft.fromEntry(entry) }
+    var draft by remember(entry.id) { mutableStateOf(original) }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Brand.colors.surface,
@@ -280,7 +314,11 @@ private fun FoodEntryDialog(container: AppContainer, entry: FoodEntry, onDismiss
         confirmButton = {
             TextButton(enabled = draft.name.isNotBlank(), onClick = {
                 container.appScope.launch {
-                    val updated = draft.toEntry().copy(id = entry.id, source = entry.source, note = entry.note)
+                    // 改了食物名称而食材没动过：原来的拆分不再对应，清空后让后台重新分析
+                    val stale = draft.name.trim() != entry.name && draft.components == original.components
+                    val updated = draft.toEntry().copy(id = entry.id, source = entry.source, note = entry.note).let {
+                        if (stale) it.copy(components = null, highSalt = null) else it
+                    }
                     container.database.foodDao().update(updated)
                     if (draft.addToFavorites) container.diet.addFavorite(updated)
                 }

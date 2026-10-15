@@ -110,6 +110,16 @@ class ScreenshotTest {
         compose.onNode(hasScrollToIndexAction()).performScrollToIndex(2)
     })
     @Test fun diet() = shot("diet", "diet")
+
+    /** 饮食页往下滚到膳食质量卡片 */
+    @Test fun dietQuality() = shot("diet_quality", "diet", after = {
+        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(3)
+    })
+
+    /** 饮食页再往下：记录上的高盐标签 */
+    @Test fun dietMeals() = shot("diet_meals", "diet", after = {
+        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(4)
+    })
     @Test fun addFood() = shot("add_food", "diet_add/${java.time.LocalDate.now().toEpochDay()}") {
         container.draftInbox.value = SampleData.drafts()
     }

@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.ui.components
 
+import io.github.sekirankumo.fitlog.data.diet.DayQuality
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,9 @@ fun NutritionSummary(
     onClick: (() -> Unit)? = null,
     /** 点「去填写」，参数是缺少的资料 */
     onCompleteProfile: ((missing: List<String>) -> Unit)? = null,
+    /** 今日页在三大营养素下面显示膳食质量；没有记录时传 null */
+    showQuality: Boolean = false,
+    quality: DayQuality? = null,
 ) {
     val c = Brand.colors
     val target = targets?.kcal
@@ -85,6 +89,10 @@ fun NutritionSummary(
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             MacroProgress("脂肪", totals.fatG, targets?.fatG, c.fat, Modifier.weight(1f))
             MacroProgress("碳水", totals.carbsG, targets?.carbsG, c.carbs, Modifier.weight(1f))
+        }
+        if (showQuality) {
+            Spacer(Modifier.height(14.dp))
+            QualityRow(quality)
         }
         // 资料齐全（或热量、蛋白质都手动指定了）就不提示
         if (targets != null && targets.needsProfile) {

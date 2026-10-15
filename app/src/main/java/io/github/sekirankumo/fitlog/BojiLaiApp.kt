@@ -9,6 +9,7 @@ import io.github.sekirankumo.fitlog.assistant.tools.AddFoodTool
 import io.github.sekirankumo.fitlog.assistant.tools.CheckinTool
 import io.github.sekirankumo.fitlog.assistant.tools.DeleteBodyRecordTool
 import io.github.sekirankumo.fitlog.assistant.tools.DeleteFoodTool
+import io.github.sekirankumo.fitlog.assistant.tools.DietQualityTool
 import io.github.sekirankumo.fitlog.assistant.tools.DeletePlanDaysTool
 import io.github.sekirankumo.fitlog.assistant.tools.GeneratePlanTool
 import io.github.sekirankumo.fitlog.assistant.tools.GetPlanDayTool
@@ -40,6 +41,7 @@ import io.github.sekirankumo.fitlog.data.ProfileRepository
 import io.github.sekirankumo.fitlog.data.ai.AiSettingsRepository
 import io.github.sekirankumo.fitlog.data.ai.OpenAiClient
 import io.github.sekirankumo.fitlog.data.db.AppDatabase
+import io.github.sekirankumo.fitlog.data.diet.DietAnalyzer
 import io.github.sekirankumo.fitlog.data.diet.DietRepository
 import io.github.sekirankumo.fitlog.data.diet.FoodRecognizer
 import io.github.sekirankumo.fitlog.data.exercise.ExerciseRepository
@@ -50,10 +52,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
+@OptIn(kotlinx.coroutines.FlowPreview::class)
 class BojiLaiApp : Application() {
     lateinit var container: AppContainer
         private set
@@ -67,6 +73,19 @@ class BojiLaiApp : Application() {
             runCatching { WorkScheduler.scheduleReminder(this@BojiLaiApp, container.profile.current().reminderMinuteOfDay) }
             runCatching { container.missedWorkouts.check() }
             runCatching { container.backup.autoBackup() }
+        }
+        // 膳食分析：打开 App 时先把还没分析过的记录补上（包括升级前的旧记录），
+        // 之后每当有新的待分析记录（手动添加、AI 助手记录等），稍等几秒再补
+        container.appScope.launch {
+            val dao = container.database.foodDao()
+            var first = true
+            combine(dao.observePendingCount(), dao.observePendingFavoriteCount()) { a, b -> a + b }
+                .distinctUntilChanged()
+                .debounce(3_000)
+                .collect { pending ->
+                    if (pending > 0) runCatching { container.dietAnalyzer.run(force = first) }
+                    first = false
+                }
         }
     }
 }
@@ -89,6 +108,7 @@ class AppContainer(app: Application) {
     val profile = ProfileRepository(database.kvDao(), database.bodyRecordDao())
     val diet = DietRepository(database.foodDao())
     val foodRecognizer = FoodRecognizer(aiSettings, aiClient)
+    val dietAnalyzer = DietAnalyzer(aiSettings, aiClient, database.foodDao())
     val exercises = ExerciseRepository(app)
     val plans = PlanRepository(database.planDao(), database.kvDao(), exercises)
     val planAi = PlanAi(aiSettings, aiClient, plans, exercises, profile, database.bodyRecordDao())
@@ -120,6 +140,7 @@ class AppContainer(app: Application) {
             DeleteBodyRecordTool(database.bodyRecordDao()),
             // 饮食
             QueryFoodTool(database.foodDao(), profile),
+            DietQualityTool(database.foodDao()),
             AddFoodTool(database.foodDao()),
             UpdateFoodTool(database.foodDao()),
             DeleteFoodTool(database.foodDao()),

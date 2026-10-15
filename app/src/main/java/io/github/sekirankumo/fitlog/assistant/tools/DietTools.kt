@@ -21,7 +21,12 @@ import io.github.sekirankumo.fitlog.data.db.FavoriteFood
 import io.github.sekirankumo.fitlog.data.db.FoodDao
 import io.github.sekirankumo.fitlog.data.db.FoodEntry
 import io.github.sekirankumo.fitlog.data.db.Meal
+import io.github.sekirankumo.fitlog.data.diet.DayQuality
 import io.github.sekirankumo.fitlog.data.diet.DayTotals
+import io.github.sekirankumo.fitlog.data.diet.FoodGroup
+import io.github.sekirankumo.fitlog.data.diet.componentList
+import io.github.sekirankumo.fitlog.data.diet.encodeComponents
+import io.github.sekirankumo.fitlog.data.diet.formatScore
 import io.github.sekirankumo.fitlog.data.diet.DietRepository
 import io.github.sekirankumo.fitlog.data.diet.describe
 import io.github.sekirankumo.fitlog.data.diet.round1
@@ -118,9 +123,57 @@ class QueryFoodTool(private val dao: FoodDao, private val profile: ProfileReposi
                 val day = end.minusDays(i)
                 val entries = dao.range(DietRepository.dayStart(day), DietRepository.dayStart(day.plusDays(1)))
                 val t = DayTotals.of(entries)
-                appendLine("== $day 合计 ${t.kcal.fmt(0)}kcal 蛋白${t.proteinG.fmt()}g 脂肪${t.fatG.fmt()}g 碳水${t.carbsG.fmt()}g")
+                appendLine("== $day 合计 ${t.kcal.fmt(0)}kcal 蛋白${t.proteinG.fmt()}g 脂肪${t.fatG.fmt()}g 碳水${t.carbsG.fmt()}g" + qualityText(entries))
                 if (days <= 3) entries.forEach { appendLine(it.describe()) }
                 if (entries.isEmpty()) appendLine("（没有记录）")
+            }
+        }
+        return ToolOutcome(text.trim())
+    }
+}
+
+/** 一天的膳食分，接在合计后面 */
+private fun qualityText(entries: List<FoodEntry>): String {
+    val q = DayQuality.of(entries) ?: return ""
+    if (q.analyzed == 0) return " 膳食分：分析中"
+    return " 膳食分 ${formatScore(q.total)}/49（${q.zone.label}）" + if (q.pending > 0) "，${q.pending} 条待分析" else ""
+}
+
+class DietQualityTool(private val dao: FoodDao) : AiTool {
+    override val name = "get_diet_quality"
+    override val description = "查询膳食质量分（GDQS，满分 49，≥23 良好，15–23 一般，<15 需改进）：每天的总分、各类食物吃了多少克和得分、扣分项和提分建议，以及高盐食物"
+    override val parameters = objectSchema(
+        emptyList(),
+        "date" to stringProp("日期 yyyy-MM-dd，默认今天"),
+        "days" to integerProp("从 date 往前共查询多少天，默认 1，最多 14"),
+    )
+    override val isWrite = false
+
+    override suspend fun execute(args: JsonObject): ToolOutcome {
+        val end = parseDate(args.str("date"))
+        val days = (args.long("days") ?: 1).coerceIn(1, 14)
+        val text = buildString {
+            for (i in days - 1 downTo 0) {
+                val day = end.minusDays(i)
+                val entries = dao.range(DietRepository.dayStart(day), DietRepository.dayStart(day.plusDays(1)))
+                val q = DayQuality.of(entries)
+                when {
+                    q == null -> appendLine("== $day 没有记录")
+                    q.analyzed == 0 -> appendLine("== $day 记录还在分析，暂时没有分数")
+                    else -> {
+                        appendLine("== $day 膳食分 ${formatScore(q.total)}/49（${q.zone.label}）" + if (q.pending > 0) "，${q.pending} 条待分析" else "")
+                        if (days <= 3) {
+                            val got = q.groups.filter { it.group.kind != FoodGroup.Kind.Unhealthy && it.points > 0 }
+                            val lost = q.groups.filter { it.group.kind == FoodGroup.Kind.Unhealthy && it.points < it.group.maxPoints } +
+                                q.groups.filter { it.group.kind == FoodGroup.Kind.Moderate && it.band == it.group.points.size - 1 && it.grams > 0 }
+                            appendLine("加分：" + got.joinToString("、") { "${it.group.label}${it.grams.fmt(0)}g +${formatScore(it.points)}" }.ifEmpty { "无" })
+                            appendLine("扣分：" + lost.joinToString("、") { "${it.group.label}${it.grams.fmt(0)}g（${formatScore(it.points)}/${formatScore(it.group.maxPoints)}）" }.ifEmpty { "无" })
+                            q.suggestion?.let { (g, step) -> appendLine("提分建议：再吃 ${step.first.fmt(0)}g ${g.group.label} 可 +${formatScore(step.second)} 分") }
+                        }
+                        val salty = entries.filter { it.highSalt == true }
+                        if (salty.isNotEmpty()) appendLine("高盐：" + salty.joinToString("、") { it.name })
+                    }
+                }
             }
         }
         return ToolOutcome(text.trim())
@@ -248,7 +301,16 @@ class UpdateFoodTool(private val dao: FoodDao) : AiTool {
             carbsG = args.num("carbs_g") ?: old.carbsG,
             meal = args.str("meal")?.let { Meal.of(it).key } ?: old.meal,
             eatenAt = args.str("time")?.let { TimeUtil.parse(it) } ?: old.eatenAt,
-        )
+        ).let { e ->
+            val oldGrams = old.grams
+            val newGrams = e.grams
+            when {
+                e.name != old.name -> e.copy(components = null, highSalt = null)
+                oldGrams != null && oldGrams > 0 && newGrams != null && newGrams > 0 && newGrams != oldGrams ->
+                    e.copy(components = encodeComponents(old.componentList?.map { it.copy(grams = (it.grams * newGrams / oldGrams).round1()) }))
+                else -> e
+            }
+        }
         return old to new
     }
 
