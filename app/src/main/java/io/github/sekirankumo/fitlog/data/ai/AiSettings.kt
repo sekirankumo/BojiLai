@@ -60,16 +60,106 @@ class AiSettingsRepository(private val context: Context) {
     }
 }
 
-/** 常用服务商的接口地址模板 */
-data class ProviderPreset(val name: String, val baseUrl: String, val hint: String)
+/**
+ * 常用的 AI 服务：接口地址、创建 Key 的页面、推荐模型和几个标签，「添加 AI 服务」的引导用。
+ * 链接和模型名 2026-10 按各家官网核对过；厂商改名时，推荐模型会和服务实际提供的模型列表对一下再用，
+ * 对不上就不自动填，让用户自己选。
+ * @param chatModels 推荐给 AI 助手的模型（要能调用工具），按优先级排
+ * @param visionModels 推荐给图片识别的模型；空表示这家不能看图
+ * @param cost 费用标签；free 为 true 时标成绿色
+ * @param china 国内网络能否直接访问
+ * @param note 注册时要注意的事
+ */
+data class ProviderPreset(
+    val name: String,
+    val baseUrl: String,
+    val intro: String,
+    val keyUrl: String? = null,
+    val chatModels: List<String> = emptyList(),
+    val visionModels: List<String> = emptyList(),
+    val cost: String = "",
+    val free: Boolean = false,
+    val china: Boolean = true,
+    val note: String? = null,
+)
 
 val PROVIDER_PRESETS = listOf(
-    ProviderPreset("智谱 GLM", "https://open.bigmodel.cn/api/paas/v4/", "glm-4-flash、glm-4v-flash 免费"),
-    ProviderPreset("硅基流动", "https://api.siliconflow.cn/v1/", "有多款免费模型"),
-    ProviderPreset("通义千问", "https://dashscope.aliyuncs.com/compatible-mode/v1/", "qwen 系列"),
-    ProviderPreset("DeepSeek", "https://api.deepseek.com/v1/", "不支持看图"),
-    ProviderPreset("Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai/", "gemini-2.5-flash 有免费额度"),
-    ProviderPreset("OpenRouter", "https://openrouter.ai/api/v1/", "模型名带 :free 的免费"),
-    ProviderPreset("Groq", "https://api.groq.com/openai/v1/", "速度快，有免费额度"),
-    ProviderPreset("自定义", "", "任意 OpenAI 兼容接口"),
+    ProviderPreset(
+        name = "智谱 GLM",
+        baseUrl = "https://open.bigmodel.cn/api/paas/v4/",
+        intro = "推荐。自动配上的 glm-4.7-flash（对话）和 glm-4.6v-flash（看图）都免费，注册完就能用。",
+        keyUrl = "https://bigmodel.cn/usercenter/proj-mgmt/apikeys",
+        chatModels = listOf("glm-4.7-flash", "glm-4.5-flash", "glm-4-flash-250414"),
+        visionModels = listOf("glm-4.6v-flash", "glm-4v-flash"),
+        cost = "有免费模型",
+        free = true,
+        note = "用手机号注册；如果提示实名认证，按页面完成就行。",
+    ),
+    ProviderPreset(
+        name = "硅基流动",
+        baseUrl = "https://api.siliconflow.cn/v1/",
+        intro = "模型很多。自动配的是常用的小模型；哪些免费以平台「模型广场」的标注为准。",
+        keyUrl = "https://cloud.siliconflow.cn/account/ak",
+        chatModels = listOf("Qwen/Qwen3-8B", "THUDM/GLM-4-9B-0414", "Qwen/Qwen2.5-7B-Instruct"),
+        visionModels = listOf("THUDM/GLM-4.1V-9B-Thinking", "Qwen/Qwen2.5-VL-7B-Instruct"),
+        cost = "部分模型免费",
+        free = true,
+    ),
+    ProviderPreset(
+        name = "通义千问",
+        baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1/",
+        intro = "阿里云百炼。新用户一般有免费额度，用完后按量付费。",
+        keyUrl = "https://bailian.console.aliyun.com/cn-beijing/model/settings/api-key",
+        chatModels = listOf("qwen-plus", "qwen-flash"),
+        visionModels = listOf("qwen3-vl-plus", "qwen-vl-plus"),
+        cost = "新用户有额度",
+        note = "第一次进去如果提示开通百炼服务，先点开通；创建 Key 时地域保持「华北2（北京）」。",
+    ),
+    ProviderPreset(
+        name = "DeepSeek",
+        baseUrl = "https://api.deepseek.com/",
+        intro = "对话便宜好用，但不能看图，拍照识别要另外配一家（比如智谱）。",
+        keyUrl = "https://platform.deepseek.com/api_keys",
+        chatModels = listOf("deepseek-flash", "deepseek-v4-flash", "deepseek-chat"),
+        cost = "按量付费",
+        note = "需要先在平台充值一点余额才能调用。",
+    ),
+    ProviderPreset(
+        name = "Google Gemini",
+        baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai/",
+        intro = "对话和看图都行，有免费额度（有次数限制）。",
+        keyUrl = "https://aistudio.google.com/apikey",
+        chatModels = listOf("gemini-3.8-flash", "gemini-3-flash", "gemini-2.5-flash"),
+        visionModels = listOf("gemini-3.8-flash", "gemini-3-flash", "gemini-2.5-flash"),
+        cost = "有免费额度",
+        free = true,
+        china = false,
+        note = "用 Google 账号登录。",
+    ),
+    ProviderPreset(
+        name = "OpenRouter",
+        baseUrl = "https://openrouter.ai/api/v1/",
+        intro = "一个 Key 用几百个模型。自动配的 openrouter/free 会在免费模型里自动挑，免费的有次数限制；充值后可以换更强的模型。",
+        keyUrl = "https://openrouter.ai/settings/keys",
+        chatModels = listOf("openrouter/free"),
+        visionModels = listOf("openrouter/free"),
+        cost = "有免费模型",
+        free = true,
+        china = false,
+    ),
+    ProviderPreset(
+        name = "Groq",
+        baseUrl = "https://api.groq.com/openai/v1/",
+        intro = "速度很快，有免费额度，但不能看图，拍照识别要另外配一家。",
+        keyUrl = "https://console.groq.com/keys",
+        chatModels = listOf("llama-3.3-70b-versatile", "openai/gpt-oss-120b"),
+        cost = "有免费额度",
+        free = true,
+        china = false,
+    ),
+    ProviderPreset("自定义", "", "任意 OpenAI 兼容接口，自己填接口地址和 Key，再到下面选模型。"),
 )
+
+/** 按接口地址找对应的常用服务（编辑已添加的服务时用） */
+fun presetFor(baseUrl: String): ProviderPreset? =
+    PROVIDER_PRESETS.firstOrNull { it.baseUrl.isNotEmpty() && it.baseUrl.trimEnd('/').equals(baseUrl.trim().trimEnd('/'), ignoreCase = true) }

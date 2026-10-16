@@ -13,6 +13,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.captureScreenRoboImage
+import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
+import androidx.compose.ui.test.onNodeWithText
+import io.github.sekirankumo.fitlog.data.ai.AiSettings
 import androidx.compose.runtime.CompositionLocalProvider
 import io.github.sekirankumo.fitlog.ui.BojiLaiRoot
 import io.github.sekirankumo.fitlog.ui.components.LocalReduceMotion
@@ -155,6 +159,30 @@ class ScreenshotTest {
     @Test fun settings() = shot("settings", "settings")
     @Test fun settingsDark() = shot("settings_dark", "settings", dark = true)
     @Test fun aiSettings() = shot("ai_settings", "ai_settings")
+
+    /** 还没配 AI 服务时的引导卡片 */
+    @Test fun aiSettingsEmpty() = shot("ai_settings_empty", "ai_settings") {
+        runBlocking { container.aiSettings.update { AiSettings() } }
+    }
+
+    /** 点「开始配置」后的添加服务弹层：默认选好智谱，下面是获取 Key 的引导 */
+    @OptIn(ExperimentalRoborazziApi::class)
+    @Test fun aiProviderGuide() {
+        runBlocking { container.aiSettings.update { AiSettings() } }
+        compose.setContent {
+            BojiLaiTheme(fontFamily = font) {
+                CompositionLocalProvider(LocalReduceMotion provides true) {
+                    BojiLaiRoot(container, "ai_settings", sideEffects = false)
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithText("开始配置").performClick()
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(1000)
+        compose.waitForIdle()
+        captureScreenRoboImage("screenshots/ai_provider_guide.png")
+    }
     @Test fun profile() = shot("profile", "profile")
     @Test fun operations() = shot("operations", "operations")
     @Test fun addFoodDark() = shot("add_food_dark", "diet_add/${java.time.LocalDate.now().toEpochDay()}", dark = true) {
