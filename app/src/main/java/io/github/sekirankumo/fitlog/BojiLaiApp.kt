@@ -103,6 +103,7 @@ class AppContainer(app: Application) {
     val database: AppDatabase = AppDatabase.create(app)
 
     val aiSettings = AiSettingsRepository(app)
+    val appPrefs = io.github.sekirankumo.fitlog.data.AppPrefs(app)
     val aiClient = OpenAiClient(httpClient)
 
     val profile = ProfileRepository(database.kvDao(), database.bodyRecordDao())

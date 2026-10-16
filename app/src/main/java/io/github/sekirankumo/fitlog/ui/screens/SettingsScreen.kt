@@ -1,5 +1,10 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.fillMaxWidth
+import io.github.sekirankumo.fitlog.ui.components.Segmented
+import io.github.sekirankumo.fitlog.data.ThemeMode
+import androidx.compose.material.icons.outlined.DarkMode
 import android.Manifest
 import android.app.TimePickerDialog
 import android.content.Intent
@@ -182,6 +187,24 @@ fun SettingsScreen(container: AppContainer, nav: SettingsNav) {
                     ToggleSwitch(reminder != null, { on -> if (on) enableReminder() else setReminder(null) }, description = "训练提醒")
                 },
             )
+        }
+
+        GroupLabel("外观")
+        ListCard {
+            val themeMode by container.appPrefs.themeMode.collectAsState()
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Icon(Icons.Outlined.DarkMode, contentDescription = null, tint = c.muted, modifier = Modifier.size(22.dp))
+                    Text("主题", style = Brand.type.bodyMedium, color = c.text)
+                }
+                Spacer(Modifier.height(12.dp))
+                Segmented(
+                    ThemeMode.entries.map { it to it.label },
+                    themeMode,
+                    { container.appPrefs.setThemeMode(it) },
+                    Modifier.fillMaxWidth(),
+                )
+            }
         }
 
         GroupLabel("AI 与语音")
