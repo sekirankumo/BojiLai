@@ -1,5 +1,9 @@
 package io.github.sekirankumo.fitlog.ui.components
 
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
@@ -111,7 +115,7 @@ fun Modifier.pressScale(interaction: InteractionSource, pressedScale: Float = 0.
 
 /**
  * 逐位滚动的数字（像里程表）：每一位单独滚，变大往上滚、变小往下滚，从左到右错开 30 毫秒。
- * 不是数字的字符（小数点、负号）也跟着位置走。
+ * 不是数字的字符（小数点、负号）也跟着位置走。页面刚出现的一秒内不滚（那时只是数据加载出来，数值并没有变）。
  */
 @Composable
 fun AnimatedNumber(
@@ -128,6 +132,13 @@ fun AnimatedNumber(
     val previous = remember { arrayOf(text) }
     val up = (text.toDoubleOrNull() ?: 0.0) >= (previous[0].toDoubleOrNull() ?: 0.0)
     previous[0] = text
+    // 切换页面时数字本身没变，只是数据刚加载出来（比如从 0 变成实际值），这时不滚动，免得看起来像数值在变；
+    // 停留一会儿之后数值真的变了（删掉一条记录、打卡一组）才滚动
+    var live by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(1000)
+        live = true
+    }
     Row(modifier) {
         text.forEachIndexed { i, ch ->
             // 从右往左对齐位数：位数变化时个位、十位还是同一个滚轮
@@ -135,11 +146,15 @@ fun AnimatedNumber(
                 AnimatedContent(
                     targetState = ch,
                     transitionSpec = {
-                        val delay = i * 30
-                        val dir = if (up) 1 else -1
-                        (slideInVertically(tween(Motion.LONG, delay, Motion.EmphasizedDecelerate)) { it * dir } + fadeIn(tween(Motion.MEDIUM, delay)))
-                            .togetherWith(slideOutVertically(tween(Motion.LONG, delay, Motion.Emphasized)) { -it * dir } + fadeOut(tween(Motion.SHORT, delay)))
-                            .using(SizeTransform(clip = true))
+                        if (!live) {
+                            (EnterTransition.None togetherWith ExitTransition.None).using(null)
+                        } else {
+                            val wait = i * 30
+                            val dir = if (up) 1 else -1
+                            (slideInVertically(tween(Motion.LONG, wait, Motion.EmphasizedDecelerate)) { it * dir } + fadeIn(tween(Motion.MEDIUM, wait)))
+                                .togetherWith(slideOutVertically(tween(Motion.LONG, wait, Motion.Emphasized)) { -it * dir } + fadeOut(tween(Motion.SHORT, wait)))
+                                .using(SizeTransform(clip = true))
+                        }
                     },
                     label = "digit",
                 ) { c ->

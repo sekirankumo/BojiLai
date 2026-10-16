@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.ui.components
 
+import androidx.compose.material3.Icon
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -226,17 +227,17 @@ private fun SmallStat(label: String, value: String, color: Color) {
 @Composable
 fun InfoButton(onClick: () -> Unit) {
     val c = Brand.colors
+    // 点击区域比圆圈大一圈；往右挪一点，让看得见的圆圈和下面内容的右边对齐
     Box(
         Modifier
-            .size(30.dp)
+            .offset(x = 7.dp)
+            .size(32.dp)
             .clip(CircleShape)
             .clickable(onClick = onClick)
             .semantics { contentDescription = "说明" },
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.size(18.dp).border(1.2.dp, c.muted, CircleShape), contentAlignment = Alignment.Center) {
-            Text("i", style = Brand.type.note.copy(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic), color = c.muted)
-        }
+        Icon(AppIcons.Info, contentDescription = null, tint = c.muted, modifier = Modifier.size(22.dp))
     }
 }
 

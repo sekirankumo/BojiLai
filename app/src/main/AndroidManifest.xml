@@ -36,6 +36,7 @@
 
         <activity
             android:name=".MainActivity"
+            android:configChanges="uiMode"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -47,6 +48,7 @@
         <!-- Health Connect 要求提供隐私说明页面 -->
         <activity
             android:name=".HealthRationaleActivity"
+            android:configChanges="uiMode"
             android:exported="true">
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />

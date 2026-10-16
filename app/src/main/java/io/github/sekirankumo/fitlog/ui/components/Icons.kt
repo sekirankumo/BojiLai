@@ -45,6 +45,22 @@ object AppIcons {
         }.build()
     }
 
+    /** 说明：圆圈里一个 i。用线条画，保证 i 在圆圈正中（文字的 i 会偏） */
+    val Info: ImageVector by lazy {
+        ImageVector.Builder("info", 24.dp, 24.dp, 24f, 24f).apply {
+            fun line(d: String, width: Float) = addPath(
+                PathParser().parsePathString(d).toNodes(),
+                fill = null,
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = width,
+                strokeLineCap = StrokeCap.Round,
+            )
+            line("M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z", 1.6f)
+            line("M12 11v5.5", 1.8f)
+            line("M12 7.6h0.01", 2.4f)
+        }.build()
+    }
+
     val Chevron: ImageVector by lazy { stroke("chevron", "M9 6l6 6-6 6") }
     val ChevronLeft: ImageVector by lazy { stroke("chevronLeft", "M15 6l-6 6 6 6") }
     val ChevronDown: ImageVector by lazy { stroke("chevronDown", "M6 9l6 6 6-6") }

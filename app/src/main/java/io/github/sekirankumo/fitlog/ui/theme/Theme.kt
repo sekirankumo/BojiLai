@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.sekirankumo.fitlog.R
+import io.github.sekirankumo.fitlog.data.ThemeMode
 
 /**
  * 「安静而有力量」的配色：只用一个品牌绿，红和橙只在提醒时出现；关键数字直接放在背景上，
@@ -253,6 +254,14 @@ private val AppShapes = Shapes(
     large = RoundedCornerShape(18.dp),
     extraLarge = RoundedCornerShape(28.dp),
 )
+
+/** 设置里选的外观对应深色还是浅色；跟随系统时看系统 */
+@Composable
+fun ThemeMode.isDark(): Boolean = when (this) {
+    ThemeMode.System -> isSystemInDarkTheme()
+    ThemeMode.Light -> false
+    ThemeMode.Dark -> true
+}
 
 /**
  * @param fontFamily 只在截图测试里用来指定中文字体，App 里用系统字体
