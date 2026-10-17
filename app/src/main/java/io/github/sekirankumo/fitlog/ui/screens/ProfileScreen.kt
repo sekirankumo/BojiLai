@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import io.github.sekirankumo.fitlog.ui.components.rememberNextWeek
 import java.time.LocalDate
 import kotlinx.serialization.json.buildJsonObject
 import io.github.sekirankumo.fitlog.ui.components.NutritionWeekSheet
@@ -65,6 +66,7 @@ fun ProfileScreen(container: AppContainer, onDone: () -> Unit) {
     val hasPlanFlow = remember { container.nutritionPlan.observeHasPlan(LocalDate.now()) }
     val hasPlan by hasPlanFlow.collectAsState(initial = false)
     var showWeek by remember { mutableStateOf(false) }
+    val nextWeek = rememberNextWeek(container)
 
     fun set(transform: (UserProfile) -> UserProfile) {
         p = transform(profile)
@@ -212,5 +214,5 @@ fun ProfileScreen(container: AppContainer, onDone: () -> Unit) {
         }
     }
 
-    if (showWeek) NutritionWeekSheet(container) { showWeek = false }
+    if (showWeek) NutritionWeekSheet(nextWeek, autoNutrition) { showWeek = false }
 }

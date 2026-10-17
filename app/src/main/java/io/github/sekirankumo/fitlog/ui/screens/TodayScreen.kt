@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import io.github.sekirankumo.fitlog.ui.components.rememberNextWeek
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -149,6 +150,8 @@ fun TodayScreen(container: AppContainer, nav: TodayNav) {
     val storedNotice by container.nutritionPlan.notice.collectAsState(initial = null)
     var notice by remember { mutableStateOf<NutritionNotice?>(null) }
     var showWeek by remember { mutableStateOf(false) }
+    val nextWeek = rememberNextWeek(container)
+    val autoNutrition by container.appPrefs.autoNutrition.collectAsState()
     LaunchedEffect(storedNotice) {
         val n = storedNotice ?: return@LaunchedEffect
         if (n.date == today.toEpochDay()) notice = n
@@ -208,7 +211,7 @@ fun TodayScreen(container: AppContainer, nav: TodayNav) {
         }
     }
 
-    if (showWeek) NutritionWeekSheet(container) { showWeek = false }
+    if (showWeek) NutritionWeekSheet(nextWeek, autoNutrition) { showWeek = false }
 }
 
 @Composable
