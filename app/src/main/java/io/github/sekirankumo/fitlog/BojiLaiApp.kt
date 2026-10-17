@@ -1,5 +1,10 @@
 package io.github.sekirankumo.fitlog
 
+import io.github.sekirankumo.fitlog.assistant.tools.ClearNutritionPlanTool
+import io.github.sekirankumo.fitlog.assistant.tools.SetNutritionPlanTool
+import io.github.sekirankumo.fitlog.assistant.tools.GetNutritionPlanTool
+import io.github.sekirankumo.fitlog.background.NutritionPlanner
+import io.github.sekirankumo.fitlog.data.NutritionPlanRepository
 import android.app.Application
 import io.github.sekirankumo.fitlog.assistant.AssistantEngine
 import io.github.sekirankumo.fitlog.assistant.OperationService
@@ -132,6 +137,9 @@ class AppContainer(app: Application) {
 
     val operations = OperationService(database.opLogDao())
 
+    /** 每天的营养安排 */
+    val nutritionPlan = NutritionPlanRepository(database.nutritionDao(), database.kvDao(), profile, database.bodyRecordDao())
+
     val tools = ToolRegistry(
         listOf(
             // 身体数据
@@ -140,7 +148,7 @@ class AppContainer(app: Application) {
             UpdateBodyRecordTool(database.bodyRecordDao()),
             DeleteBodyRecordTool(database.bodyRecordDao()),
             // 饮食
-            QueryFoodTool(database.foodDao(), profile),
+            QueryFoodTool(database.foodDao(), nutritionPlan),
             DietQualityTool(database.foodDao()),
             AddFoodTool(database.foodDao()),
             UpdateFoodTool(database.foodDao()),
@@ -163,6 +171,10 @@ class AppContainer(app: Application) {
             GetProfileTool(profile, database.bodyRecordDao()),
             UpdateProfileTool(profile),
             RememberTool(profile),
+            // 每天的营养安排
+            GetNutritionPlanTool(nutritionPlan, appPrefs),
+            SetNutritionPlanTool(nutritionPlan),
+            ClearNutritionPlanTool(nutritionPlan),
             // 通用
             OpenPageTool(navEvents),
             ListOperationsTool(database.opLogDao()),
@@ -171,6 +183,11 @@ class AppContainer(app: Application) {
     ).also { operations.registry = it }
 
     val missedWorkouts = MissedWorkoutService(app, plans, database.kvDao(), operations, tools)
+
+    val nutritionPlanner = NutritionPlanner(
+        aiSettings, aiClient, nutritionPlan, database, plans, appPrefs, operations, tools,
+        beforeCheck = { missedWorkouts.check() },
+    )
 
     val assistant = AssistantEngine(aiSettings, aiClient, tools, operations, database, profile)
 }

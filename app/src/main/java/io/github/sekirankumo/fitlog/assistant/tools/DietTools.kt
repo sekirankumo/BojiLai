@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.assistant.tools
 
+import io.github.sekirankumo.fitlog.data.NutritionPlanRepository
 import io.github.sekirankumo.fitlog.assistant.AiTool
 import io.github.sekirankumo.fitlog.assistant.ToolException
 import io.github.sekirankumo.fitlog.assistant.ToolOutcome
@@ -16,7 +17,6 @@ import io.github.sekirankumo.fitlog.assistant.objects
 import io.github.sekirankumo.fitlog.assistant.requireLong
 import io.github.sekirankumo.fitlog.assistant.str
 import io.github.sekirankumo.fitlog.assistant.stringProp
-import io.github.sekirankumo.fitlog.data.ProfileRepository
 import io.github.sekirankumo.fitlog.data.db.FavoriteFood
 import io.github.sekirankumo.fitlog.data.db.FoodDao
 import io.github.sekirankumo.fitlog.data.db.FoodEntry
@@ -103,9 +103,9 @@ private fun JsonObject.toFoodEntry() = FoodEntry(
     note = str("note"),
 )
 
-class QueryFoodTool(private val dao: FoodDao, private val profile: ProfileRepository) : AiTool {
+class QueryFoodTool(private val dao: FoodDao, private val nutrition: NutritionPlanRepository) : AiTool {
     override val name = "query_food_entries"
-    override val description = "查询某天或某段时间的饮食记录和营养合计（含每日目标）"
+    override val description = "查询某天或某段时间的饮食记录和营养合计（含当天的营养目标，每天的目标可能不同）"
     override val parameters = objectSchema(
         emptyList(),
         "date" to stringProp("日期 yyyy-MM-dd，默认今天"),
@@ -116,14 +116,14 @@ class QueryFoodTool(private val dao: FoodDao, private val profile: ProfileReposi
     override suspend fun execute(args: JsonObject): ToolOutcome {
         val end = parseDate(args.str("date"))
         val days = (args.long("days") ?: 1).coerceIn(1, 31)
-        val targets = profile.currentTargets()
         val text = buildString {
-            appendLine("每日目标：${targets.kcal}kcal 蛋白${targets.proteinG}g 脂肪${targets.fatG}g 碳水${targets.carbsG}g")
             for (i in days - 1 downTo 0) {
                 val day = end.minusDays(i)
                 val entries = dao.range(DietRepository.dayStart(day), DietRepository.dayStart(day.plusDays(1)))
                 val t = DayTotals.of(entries)
+                val target = nutrition.targetAt(day)
                 appendLine("== $day 合计 ${t.kcal.fmt(0)}kcal 蛋白${t.proteinG.fmt()}g 脂肪${t.fatG.fmt()}g 碳水${t.carbsG.fmt()}g" + qualityText(entries))
+                appendLine("当天目标 ${target.kcal}kcal 蛋白${target.proteinG}g 脂肪${target.fatG}g 碳水${target.carbsG}g")
                 if (days <= 3) entries.forEach { appendLine(it.describe()) }
                 if (entries.isEmpty()) appendLine("（没有记录）")
             }

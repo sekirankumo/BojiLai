@@ -2,6 +2,7 @@ package io.github.sekirankumo.fitlog
 
 import android.graphics.Color
 import android.os.Bundle
+import kotlinx.coroutines.launch
 import androidx.activity.SystemBarStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -26,10 +27,17 @@ import io.github.sekirankumo.fitlog.ui.theme.BojiLaiTheme
 
 /** 首次打开不申请任何权限：通知权限在设置里开启训练提醒时才申请 */
 class MainActivity : ComponentActivity() {
+    private val container get() = (application as BojiLaiApp).container
+
+    /** 每次回到 App 都看一下：今天第一次打开时，AI 根据前几天的表现重排接下来的营养目标（一天只跑一次） */
+    override fun onResume() {
+        super.onResume()
+        container.appScope.launch { runCatching { container.nutritionPlanner.dailyCheck() } }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val container = (application as BojiLaiApp).container
         val openRoute = intent?.getStringExtra(Notifications.EXTRA_OPEN)
         setContent {
             val dark = rememberAppDark(container)

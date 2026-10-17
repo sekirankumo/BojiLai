@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog
 
+import androidx.compose.ui.test.performScrollTo
 import android.app.Application
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.hasScrollToIndexAction
@@ -184,6 +185,40 @@ class ScreenshotTest {
         captureScreenRoboImage("screenshots/ai_provider_guide.png")
     }
     @Test fun profile() = shot("profile", "profile")
+
+    /** AI 调整营养后，今日页只出现一次的提示 */
+    @Test fun todayNotice() = shot("today_notice", "today") {
+        runBlocking { SampleData.nutritionPlan(container) }
+    }
+
+    /** 个人信息页：每天的营养安排 */
+    @Test fun profilePlan() = shot("profile_plan", "profile", after = {
+        compose.onNodeWithText("查看接下来 7 天").performScrollTo()
+    }) {
+        runBlocking { SampleData.nutritionPlan(container) }
+    }
+
+    /** 接下来 7 天的营养安排 */
+    @OptIn(ExperimentalRoborazziApi::class)
+    @Test fun nutritionWeek() {
+        runBlocking { SampleData.nutritionPlan(container) }
+        compose.setContent {
+            BojiLaiTheme(fontFamily = font) {
+                CompositionLocalProvider(LocalReduceMotion provides true) {
+                    BojiLaiRoot(container, "profile", sideEffects = false)
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithText("查看接下来 7 天").performScrollTo().performClick()
+        compose.waitForIdle()
+        // 弹层里的 7 天是从数据库读的（在后台线程），等它读回来
+        Thread.sleep(800)
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(1000)
+        compose.waitForIdle()
+        captureScreenRoboImage("screenshots/nutrition_week.png")
+    }
     @Test fun operations() = shot("operations", "operations")
     @Test fun addFoodDark() = shot("add_food_dark", "diet_add/${java.time.LocalDate.now().toEpochDay()}", dark = true) {
         container.draftInbox.value = SampleData.drafts()

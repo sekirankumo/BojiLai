@@ -32,6 +32,12 @@ data class ToolCall(
     val name: String,
     /** JSON 字符串 */
     val arguments: String,
+    /**
+     * 服务商附加在这次调用上的额外信息，下一轮要原样带回去。
+     * Gemini 的思考型模型把「思考签名」（extra_content.google.thought_signature）放在这里，
+     * 带回去时少了它会直接报 400。别的服务一般没有这个字段。
+     */
+    val extra: JsonObject? = null,
 )
 
 data class ChatResult(
@@ -52,6 +58,7 @@ data class ChatResult(
                             put("name", call.name)
                             put("arguments", call.arguments)
                         }
+                        call.extra?.let { put("extra_content", it) }
                     })
                 }
             }
@@ -195,11 +202,12 @@ class OpenAiClient(private val http: OkHttpClient) {
     }
 
     /** 读取 SSE 流：拼接 delta 里的文字和工具调用 */
-    private fun readStream(source: okio.BufferedSource, onProgress: ((Int) -> Unit)?): ChatResult {
+    internal fun readStream(source: okio.BufferedSource, onProgress: ((Int) -> Unit)?): ChatResult {
         val content = StringBuilder()
         var thinking = 0
         // 工具调用按 index 拼接
         val calls = sortedMapOf<Int, Triple<StringBuilder, StringBuilder, StringBuilder>>()
+        val extras = mutableMapOf<Int, JsonObject>()
         var lastReport = 0
         while (true) {
             val line = source.readUtf8Line() ?: break
@@ -217,8 +225,12 @@ class OpenAiClient(private val http: OkHttpClient) {
             ((delta["reasoning_content"] ?: delta["reasoning"]) as? JsonPrimitive)?.contentOrNull?.let { thinking += it.length }
             (delta["tool_calls"] as? JsonArray)?.forEachIndexed { pos, el ->
                 val tc = el as? JsonObject ?: return@forEachIndexed
-                val index = (tc["index"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull() ?: pos
+                val fnName = ((tc["function"] as? JsonObject)?.get("name") as? JsonPrimitive)?.contentOrNull
+                val index = (tc["index"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull()
+                    // 没写 index：一个新的函数名说明是新的一次调用，接在后面，别和前一次拼在一起
+                    ?: if (fnName != null && calls[pos]?.second?.isNotEmpty() == true) (calls.lastKey() + 1) else pos
                 val entry = calls.getOrPut(index) { Triple(StringBuilder(), StringBuilder(), StringBuilder()) }
+                (tc["extra_content"] as? JsonObject)?.let { extras[index] = it }
                 (tc["id"] as? JsonPrimitive)?.contentOrNull?.let { if (entry.first.isEmpty()) entry.first.append(it) }
                 val fn = tc["function"] as? JsonObject
                 (fn?.get("name") as? JsonPrimitive)?.contentOrNull?.let { if (entry.second.isEmpty()) entry.second.append(it) }
@@ -239,6 +251,7 @@ class OpenAiClient(private val http: OkHttpClient) {
                 id = v.first.toString().ifEmpty { "call_$i" },
                 name = v.second.toString(),
                 arguments = v.third.toString().ifBlank { "{}" },
+                extra = extras[i],
             )
         }
         val text = stripThinking(content.toString())
@@ -280,6 +293,7 @@ class OpenAiClient(private val http: OkHttpClient) {
                 id = (o["id"] as? JsonPrimitive)?.contentOrNull ?: "call_$i",
                 name = (fn["name"] as JsonPrimitive).content,
                 arguments = args.ifBlank { "{}" },
+                extra = o["extra_content"] as? JsonObject,
             )
         }
         return ChatResult(content?.takeIf { it.isNotBlank() }, calls)

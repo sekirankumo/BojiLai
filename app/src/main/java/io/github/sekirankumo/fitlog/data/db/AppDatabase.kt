@@ -19,8 +19,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FavoriteFood::class,
         PlanDay::class,
         KeyValue::class,
+        NutritionDay::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -29,11 +30,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun foodDao(): FoodDao
     abstract fun planDao(): PlanDao
     abstract fun kvDao(): KeyValueDao
+    abstract fun nutritionDao(): NutritionDao
 
     companion object {
-        fun create(context: Context): AppDatabase =
-            // 文件名沿用改名前的 fitlog.db，不能改，否则旧数据读不到
-            Room.databaseBuilder(context, AppDatabase::class.java, "fitlog.db")
+        /** name 只在测试里换；App 里文件名沿用改名前的 fitlog.db，不能改，否则旧数据读不到 */
+        fun create(context: Context, name: String = "fitlog.db"): AppDatabase =
+            Room.databaseBuilder(context, AppDatabase::class.java, name)
                 .addMigrations(*MIGRATIONS)
                 .build()
     }
@@ -109,6 +111,23 @@ private val MIGRATIONS = arrayOf(
             db.execSQL("ALTER TABLE `food_entry` ADD COLUMN `highSalt` INTEGER")
             db.execSQL("ALTER TABLE `favorite_food` ADD COLUMN `components` TEXT")
             db.execSQL("ALTER TABLE `favorite_food` ADD COLUMN `highSalt` INTEGER")
+        }
+    },
+    // 每天单独的营养目标：只新建一张表，原有数据不动
+    object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `nutrition_day` (" +
+                    "`date` INTEGER NOT NULL, " +
+                    "`kcal` INTEGER NOT NULL, " +
+                    "`proteinG` INTEGER NOT NULL, " +
+                    "`fatG` INTEGER NOT NULL, " +
+                    "`carbsG` INTEGER NOT NULL, " +
+                    "`note` TEXT, " +
+                    "`source` TEXT NOT NULL, " +
+                    "`updatedAt` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`date`))"
+            )
         }
     },
 )

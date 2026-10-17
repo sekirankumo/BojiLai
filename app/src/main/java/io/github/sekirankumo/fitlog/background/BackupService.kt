@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.background
 
+import io.github.sekirankumo.fitlog.data.db.NutritionDay
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
@@ -30,6 +31,8 @@ data class BackupFile(
     val planDays: List<PlanDay> = emptyList(),
     val kv: List<KeyValue> = emptyList(),
     val opLogs: List<OpLog> = emptyList(),
+    /** 0.1.23 起：每天的营养目标（旧备份没有这一项） */
+    val nutritionDays: List<NutritionDay> = emptyList(),
 )
 
 /**
@@ -48,6 +51,7 @@ class BackupService(private val context: Context, private val db: AppDatabase) {
             planDays = db.planDao().all(),
             kv = db.kvDao().all(),
             opLogs = db.opLogDao().all(),
+            nutritionDays = db.nutritionDao().all(),
         )
         return json.encodeToString(BackupFile.serializer(), file)
     }
@@ -70,12 +74,14 @@ class BackupService(private val context: Context, private val db: AppDatabase) {
             db.planDao().clear()
             db.kvDao().clear()
             db.opLogDao().clear()
+            db.nutritionDao().clear()
             db.bodyRecordDao().insertAll(file.bodyRecords)
             db.foodDao().insertAll(file.foodEntries)
             file.favorites.forEach { db.foodDao().insertFavorite(it) }
             db.planDao().upsertAll(file.planDays)
             file.kv.forEach { db.kvDao().put(it) }
             db.opLogDao().insertAll(file.opLogs)
+            db.nutritionDao().upsertAll(file.nutritionDays)
         }
         file
     }

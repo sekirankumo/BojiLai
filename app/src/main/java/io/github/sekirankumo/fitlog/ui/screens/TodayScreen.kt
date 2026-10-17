@@ -1,5 +1,14 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import io.github.sekirankumo.fitlog.ui.components.itemMotion
+import io.github.sekirankumo.fitlog.ui.components.LocalToast
+import io.github.sekirankumo.fitlog.ui.components.NutritionWeekSheet
+import io.github.sekirankumo.fitlog.ui.components.NutritionNoticeCard
+import io.github.sekirankumo.fitlog.data.NutritionNotice
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -90,7 +99,9 @@ fun TodayScreen(container: AppContainer, nav: TodayNav) {
     val today = LocalDate.now()
     val foodFlow = remember { container.diet.observeDay(today) }
     val food by foodFlow.collectAsState(initial = emptyList())
-    val targets by container.profile.targets.collectAsState(initial = null)
+    // 今天的营养目标：有 AI 安排用安排，没有用默认
+    val targetFlow = remember(today) { container.nutritionPlan.targetFor(today) }
+    val targets by targetFlow.collectAsState(initial = null)
     val dayFlow = remember { container.plans.observeDay(today) }
     val plan by dayFlow.collectAsState(initial = null)
     val bodyFlow = remember { container.database.bodyRecordDao().observeAll() }
@@ -133,6 +144,17 @@ fun TodayScreen(container: AppContainer, nav: TodayNav) {
     TrackTopBar(list, compactAfter = 150.dp)
     val topInset = LocalScreenInsets.current.top
 
+    // AI 调整营养后的提示：只在今日页出现一次。一显示就标记为看过，这次停留期间留着，下次再来就没有了
+    val toast = LocalToast.current
+    val storedNotice by container.nutritionPlan.notice.collectAsState(initial = null)
+    var notice by remember { mutableStateOf<NutritionNotice?>(null) }
+    var showWeek by remember { mutableStateOf(false) }
+    LaunchedEffect(storedNotice) {
+        val n = storedNotice ?: return@LaunchedEffect
+        if (n.date == today.toEpochDay()) notice = n
+        container.nutritionPlan.dismissNotice(n.opId)
+    }
+
     LazyColumn(state = list, contentPadding = screenPadding(extraTop = 6.dp, extraBottom = 28.dp)) {
         item(key = "hero") {
             Box {
@@ -156,6 +178,22 @@ fun TodayScreen(container: AppContainer, nav: TodayNav) {
                 Macro("碳水", totals.carbsG, targets?.carbsG, Modifier.weight(1f))
             }
         }
+        notice?.let { n ->
+            item(key = "nutrition_notice") {
+                NutritionNoticeCard(
+                    n,
+                    onView = { showWeek = true },
+                    onUndo = {
+                        notice = null
+                        container.appScope.launch {
+                            val ok = runCatching { container.operations.undo(n.opId) }.isSuccess
+                            toast.show(if (ok) "已撤销这次营养调整" else "撤销失败，可以在调整记录里再试")
+                        }
+                    },
+                    modifier = itemMotion().padding(top = 24.dp),
+                )
+            }
+        }
         item(key = "quality") {
             QualityRow(quality, Modifier.padding(top = 24.dp), onClick = nav.openDiet)
         }
@@ -169,6 +207,8 @@ fun TodayScreen(container: AppContainer, nav: TodayNav) {
             Box(Modifier.padding(top = 12.dp)) { BodyCard(records, training, profile.sex == "female", nav.openBody) }
         }
     }
+
+    if (showWeek) NutritionWeekSheet(container) { showWeek = false }
 }
 
 @Composable

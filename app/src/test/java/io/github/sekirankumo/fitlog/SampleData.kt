@@ -1,5 +1,8 @@
 package io.github.sekirankumo.fitlog
 
+import io.github.sekirankumo.fitlog.data.NutritionNotice
+import io.github.sekirankumo.fitlog.data.NutritionBaseline
+import io.github.sekirankumo.fitlog.data.db.NutritionDay
 import io.github.sekirankumo.fitlog.assistant.ChatItem
 import io.github.sekirankumo.fitlog.data.ai.AiProvider
 import io.github.sekirankumo.fitlog.data.ai.ModelRef
@@ -258,6 +261,21 @@ object SampleData {
                 FoodDraft.nextKey(), "杂粮饭", "一小碗", 120.0, 151.0, 4.1, 1.0, 31.6, Meal.Dinner, t, confidence = "中", addToFavorites = true,
                 components = listOf(FoodComponent("杂粮饭", "whole_grains", 120.0)),
             ),
+        )
+    }
+
+    /** AI 排好的接下来 7 天营养，以及今日页的调整提示 */
+    suspend fun nutritionPlan(container: AppContainer) {
+        val notes = listOf("训练日，碳水多一点", "休息日，碳水少一点", "练腿日，碳水最多", "休息日", "上肢日", "休息日", "练腿日")
+        val kcals = listOf(1950, 1750, 2050, 1750, 1950, 1750, 2050)
+        container.database.nutritionDao().upsertAll(
+            kcals.mapIndexed { i, k ->
+                NutritionDay(today.plusDays(i.toLong()).toEpochDay(), k, 135, 60, (k - 135 * 4 - 60 * 9) / 4, notes[i], NutritionDay.SOURCE_AI, 0)
+            },
+        )
+        container.nutritionPlan.setBaseline(NutritionBaseline(1880, today.minusDays(3).toEpochDay()))
+        container.nutritionPlan.setNotice(
+            NutritionNotice(1, "昨天多吃了约 300 kcal，分 3 天补回；练腿日碳水多一点", today.toEpochDay(), 2050, 1950),
         )
     }
 
