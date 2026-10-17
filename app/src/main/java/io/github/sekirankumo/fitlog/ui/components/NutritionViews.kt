@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.ui.components
 
+import io.github.sekirankumo.fitlog.data.PlannedDay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,14 +58,19 @@ fun NutritionNoticeCard(notice: NutritionNotice, onView: () -> Unit, onUndo: () 
     }
 }
 
+/** 页面里先把接下来 7 天读好，打开弹层时直接有内容，不会先空一下 */
+@Composable
+fun rememberNextWeek(container: AppContainer): List<PlannedDay>? {
+    val flow = remember { container.nutritionPlan.observeDays(LocalDate.now(), 7) }
+    val days by flow.collectAsState(initial = null)
+    return days
+}
+
 /** 接下来 7 天每天的营养目标和说明 */
 @Composable
-fun NutritionWeekSheet(container: AppContainer, onDismiss: () -> Unit) {
+fun NutritionWeekSheet(days: List<PlannedDay>?, auto: Boolean, onDismiss: () -> Unit) {
     val c = Brand.colors
     val today = remember { LocalDate.now() }
-    val flow = remember { container.nutritionPlan.observeDays(today, 7) }
-    val days by flow.collectAsState(initial = null)
-    val auto by container.appPrefs.autoNutrition.collectAsState()
     BSheet(
         onDismiss = onDismiss,
         title = "接下来 7 天的营养",
