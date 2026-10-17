@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.assistant
 
+import io.github.sekirankumo.fitlog.data.with
 import io.github.sekirankumo.fitlog.assistant.tools.describe
 import io.github.sekirankumo.fitlog.data.ProfileRepository
 import io.github.sekirankumo.fitlog.data.ai.AiSettings
@@ -289,8 +290,10 @@ class AssistantEngine(
     private suspend fun systemPrompt(): String {
         val latestWeight = db.bodyRecordDao().latestWeight()
         val p = profile.current()
-        val targets = profile.currentTargets()
+        val defaults = profile.currentTargets()
         val today = java.time.LocalDate.now()
+        val todayNutrition = db.nutritionDao().get(today.toEpochDay())
+        val targets = defaults.with(todayNutrition)
         val food = db.foodDao().range(
             io.github.sekirankumo.fitlog.data.diet.DietRepository.dayStart(today),
             io.github.sekirankumo.fitlog.data.diet.DietRepository.dayStart(today.plusDays(1)),
@@ -309,6 +312,7 @@ class AssistantEngine(
             - 膳食质量用 get_diet_quality 查（GDQS 膳食分，满分 49，≥23 良好）。分数和食材分类由 App 自动计算，记录饮食时不用自己填；评价饮食结构、做周报时引用它的扣分项和提分建议，标着「高盐」的食物要提醒用户注意。
             - 常吃食物只在记录饮食时添加：用户要收藏时，在 add_food_entries 里给那条食物设 add_to_favorites。修改、删除常吃先用 list_favorite_foods 查 id，再用 update_favorite_food / delete_favorite_food。
             - 用户提到伤病、身体限制、饮食习惯、训练偏好等长期信息时，用 remember_user_info 记下来。
+            - 每天的营养目标可以不同：用 get_nutrition_plan 查看，set_nutrition_plan 安排或修改今天及以后的某几天，clear_nutrition_plan 恢复默认。App 每天第一次打开时会根据前几天的表现自动重排接下来 7 天（记在调整记录里，可撤销）。只想改默认目标时用 update_user_profile。
             - 修改类操作会先给用户确认（用户也可能设置了直接执行），执行结果会通过工具返回告诉你；用户取消就不要再重复尝试。
             - 用户想撤销之前的修改（包括漏打卡后的自动调整）时，先用 list_recent_operations 找到对应操作，再调用 undo_operation。
             - 用户发的图片会直接给你，或者先由图片识别模型写成文字（标着【图片内容】）。用户发食物照片想记录时，根据图片估算后调用 add_food_entries；发体重秤截图想记录时调用 add_body_record。
@@ -319,7 +323,8 @@ class AssistantEngine(
             - 不要用 LaTeX 公式和 HTML 标签，算式直接写，例如 10×70 + 6.25×175 − 5×30 + 5 = 1649。
 
             用户信息：${p.describe(latestWeight?.weightKg)}
-            每日营养目标：${targets.kcal}kcal 蛋白${targets.proteinG}g 脂肪${targets.fatG}g 碳水${targets.carbsG}g
+            今天的营养目标：${targets.kcal}kcal 蛋白${targets.proteinG}g 脂肪${targets.fatG}g 碳水${targets.carbsG}g${todayNutrition?.takeIf { it.source == io.github.sekirankumo.fitlog.data.db.NutritionDay.SOURCE_AI }?.let { "（AI 安排" + (it.note?.let { n -> "：$n" } ?: "") + "）" } ?: "（默认目标）"}
+            默认营养目标：${defaults.kcal}kcal 蛋白${defaults.proteinG}g 脂肪${defaults.fatG}g 碳水${defaults.carbsG}g
             今天已摄入：${food.sumOf { it.kcal }.toInt()}kcal（${food.size} 条记录）
             今天的训练：${todayPlan?.let { "${it.title}（${io.github.sekirankumo.fitlog.data.db.DayStatus.label(it.status)}）" } ?: "休息日或没有计划"}
             最新体重记录：${latestWeight?.describe() ?: "暂无"}

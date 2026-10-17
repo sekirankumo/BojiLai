@@ -53,7 +53,8 @@ fun rememberTrainingData(container: AppContainer): TrainingData {
     }
     val food by foodFlow.collectAsState(initial = emptyList())
     val profile by container.profile.profile.collectAsState(initial = UserProfile())
-    val targets by container.profile.targets.collectAsState(initial = null)
+    val targetFlow = remember { container.nutritionPlan.targetFor(today.minusDays(1)) }
+    val targets by targetFlow.collectAsState(initial = null)
     val weightFlow = remember { container.database.bodyRecordDao().observeLatest() }
     val latest by weightFlow.collectAsState(initial = null)
 

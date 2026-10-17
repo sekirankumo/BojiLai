@@ -1,5 +1,11 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import java.time.LocalDate
+import kotlinx.serialization.json.buildJsonObject
+import io.github.sekirankumo.fitlog.ui.components.NutritionWeekSheet
+import io.github.sekirankumo.fitlog.ui.components.ButtonKind
+import io.github.sekirankumo.fitlog.ui.components.ToggleSwitch
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,6 +59,12 @@ fun ProfileScreen(container: AppContainer, onDone: () -> Unit) {
     val profile = p ?: return
     val weight = records?.weightKg
     val preview = NutritionTargets.from(profile, weight)
+    val autoNutrition by container.appPrefs.autoNutrition.collectAsState()
+    val baselineFlow = remember { container.nutritionPlan.observeBaseline() }
+    val baseline by baselineFlow.collectAsState(initial = null)
+    val hasPlanFlow = remember { container.nutritionPlan.observeHasPlan(LocalDate.now()) }
+    val hasPlan by hasPlanFlow.collectAsState(initial = false)
+    var showWeek by remember { mutableStateOf(false) }
 
     fun set(transform: (UserProfile) -> UserProfile) {
         p = transform(profile)
@@ -81,7 +93,7 @@ fun ProfileScreen(container: AppContainer, onDone: () -> Unit) {
         GroupLabel("目标")
         Segmented(UserProfile.GOALS.entries.map { it.key to it.value }, profile.goal, { v -> set { it.copy(goal = v) } }, Modifier.fillMaxWidth())
 
-        GroupLabel("每日营养目标")
+        GroupLabel("默认营养目标")
         BCard {
             Text("热量", style = Brand.type.label, color = c.muted)
             Spacer(Modifier.height(4.dp))
@@ -124,6 +136,45 @@ fun ProfileScreen(container: AppContainer, onDone: () -> Unit) {
             Text("留空则按身体数据自动计算", style = Brand.type.note, color = c.muted)
         }
 
+        GroupLabel("每天的营养安排")
+        BCard {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text("每天自动调整", style = Brand.type.bodyMedium, color = c.text)
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        "每天第一次打开时，AI 根据前几天吃的、体重和训练，重新安排接下来 7 天每天的目标。没有安排的日子按上面的默认目标。",
+                        style = Brand.type.note,
+                        color = c.muted,
+                    )
+                }
+                ToggleSwitch(autoNutrition, { container.appPrefs.setAutoNutrition(it) }, description = "每天自动调整营养")
+            }
+            baseline?.let { b ->
+                Spacer(Modifier.height(10.dp))
+                Text("AI 目前用的基础热量 ${b.kcal} kcal（默认 ${preview.kcal} kcal）", style = Brand.type.note, color = c.muted)
+            }
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BButton("查看接下来 7 天", Modifier.weight(1f), kind = ButtonKind.Soft, height = 40.dp) { showWeek = true }
+                if (hasPlan || baseline != null) {
+                    BButton("恢复默认", Modifier.weight(1f), kind = ButtonKind.Text, height = 40.dp) {
+                        val tool = container.tools["clear_nutrition_plan"] ?: return@BButton
+                        container.appScope.launch {
+                            val id = runCatching { container.operations.runWrite(tool, buildJsonObject {}).second }.getOrNull()
+                            if (id == null) {
+                                toast.show("恢复失败，请稍后再试")
+                            } else {
+                                toast.show("已清除 AI 的安排，接下来按默认目标", "撤销") {
+                                    container.appScope.launch { runCatching { container.operations.undo(id) } }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         GroupLabel("训练偏好")
         BCard {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -160,4 +211,6 @@ fun ProfileScreen(container: AppContainer, onDone: () -> Unit) {
             onDone()
         }
     }
+
+    if (showWeek) NutritionWeekSheet(container) { showWeek = false }
 }

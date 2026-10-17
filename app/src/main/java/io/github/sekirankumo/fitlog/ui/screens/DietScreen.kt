@@ -89,7 +89,8 @@ fun DietScreen(container: AppContainer, completeProfile: (List<String>) -> Unit,
     // 还在从数据库读取时为 null：这时不显示「还没有记录」，免得每次打开都闪一下
     val loadedEntries by entriesFlow.collectAsState(initial = null)
     val entries = loadedEntries.orEmpty()
-    val targets by container.profile.targets.collectAsState(initial = null)
+    val targetFlow = remember(day) { container.nutritionPlan.targetFor(day) }
+    val targets by targetFlow.collectAsState(initial = null)
     var editing by remember { mutableStateOf<FoodEntry?>(null) }
 
     // 日历上显示的这个月（前后多带一周）每天的膳食分区间
