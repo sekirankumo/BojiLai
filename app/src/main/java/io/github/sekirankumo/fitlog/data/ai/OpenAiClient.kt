@@ -114,16 +114,19 @@ class OpenAiClient(private val http: OkHttpClient) {
         stream: Boolean = false,
         onProgress: ((Int) -> Unit)? = null,
     ): ChatResult {
-        // 依次尝试：原始参数 → 去掉 response_format → 关掉流式。只有服务端明确拒绝参数（400/422）时才降级
+        // 依次尝试：原始参数 → 去掉 temperature → 去掉 response_format → 关掉流式。只有服务端明确拒绝参数（400/422）时才降级。
+        // Claude 新模型、OpenAI 新模型只接受默认温度，传别的值会直接 400
+        data class Attempt(val json: Boolean, val stream: Boolean, val temperature: Double?)
         val attempts = buildList {
-            add(jsonMode to stream)
-            if (jsonMode) add(false to stream)
-            if (stream) add(false to false)
+            add(Attempt(jsonMode, stream, temperature))
+            if (temperature != null) add(Attempt(jsonMode, stream, null))
+            if (jsonMode) add(Attempt(false, stream, null))
+            if (stream) add(Attempt(false, false, null))
         }.distinct()
         var lastError: AiException? = null
-        for ((json, useStream) in attempts) {
+        for ((json, useStream, temp) in attempts) {
             try {
-                return withNetworkRetry { chatOnce(provider, model, messages, tools, json, temperature, useStream, onProgress) }
+                return withNetworkRetry { chatOnce(provider, model, messages, tools, json, temp, useStream, onProgress) }
             } catch (e: AiException) {
                 lastError = e
                 val rejected = e.message?.contains("HTTP 400") == true || e.message?.contains("HTTP 422") == true
