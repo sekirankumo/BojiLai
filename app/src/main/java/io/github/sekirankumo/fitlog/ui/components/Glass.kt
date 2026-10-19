@@ -50,8 +50,8 @@ val LocalHaze = staticCompositionLocalOf<HazeState?> { null }
 /**
  * 毛玻璃：模糊背后的内容再叠一层半透明底色，描一圈很淡的边。
  * 安卓 12 以下（或截图测试里）没有实时模糊，只用半透明底色。
- * @param source 模糊谁。浮层自己在 source 里面时什么都画不出来（变成全透明），
- * 所以页面里的浮层（输入框、保存栏）要传页面自己的列表做来源，不能用整页的 LocalHaze。
+ * @param source 模糊谁；为 null 时用接近不透明的实色底。
+ * 页面里面的浮层（输入框、保存栏）实测画不出模糊（变成全透明，后面的字透出来），一律传 null。
  */
 @Composable
 fun Modifier.glass(shape: Shape, source: HazeState? = LocalHaze.current): Modifier {

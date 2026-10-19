@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog.assistant.tools
 
+import io.github.sekirankumo.fitlog.assistant.requireStr
 import io.github.sekirankumo.fitlog.data.NutritionPlanRepository
 import io.github.sekirankumo.fitlog.assistant.AiTool
 import io.github.sekirankumo.fitlog.assistant.ToolException
@@ -362,6 +363,50 @@ class ListFavoritesTool(private val dao: FoodDao) : AiTool {
         val list = dao.favorites()
         if (list.isEmpty()) return ToolOutcome("没有收藏的食物")
         return ToolOutcome(list.joinToString("\n") { it.describe() })
+    }
+}
+
+class AddFavoriteTool(private val dao: FoodDao) : AiTool {
+    override val name = "add_favorite_food"
+    override val description = "新增一个常吃食物（只收藏，不记录饮食），以后记一餐时点一下就能加入。营养数值按给出的份量填写；食材和膳食分类 App 会在后台自动补上"
+    override val parameters = objectSchema(
+        listOf("name", "kcal", "protein_g", "fat_g", "carbs_g"),
+        "name" to stringProp("名称"),
+        "amount" to stringProp("份量描述，例如「一碗」「1 杯」"),
+        "grams" to numberProp("克数"),
+        "kcal" to numberProp("热量"),
+        "protein_g" to numberProp("蛋白质 g"),
+        "fat_g" to numberProp("脂肪 g"),
+        "carbs_g" to numberProp("碳水 g"),
+        "high_salt" to booleanProp("是否高盐（腌腊、卤味、重口味等）"),
+    )
+    override val isWrite = true
+
+    private suspend fun build(args: JsonObject): FavoriteFood {
+        val name = args.requireStr("name").trim()
+        if (dao.favoriteByName(name) != null) throw ToolException("已经有叫「$name」的常吃了，要改的话用 update_favorite_food")
+        return FavoriteFood(
+            name = name,
+            amount = args.str("amount"),
+            grams = args.num("grams"),
+            kcal = (args.num("kcal") ?: 0.0).round1(),
+            proteinG = (args.num("protein_g") ?: 0.0).round1(),
+            fatG = (args.num("fat_g") ?: 0.0).round1(),
+            carbsG = (args.num("carbs_g") ?: 0.0).round1(),
+            highSalt = args.bool("high_salt"),
+        )
+    }
+
+    override suspend fun preview(args: JsonObject) = "添加常吃：" + build(args).describe().substringAfter(' ')
+
+    override suspend fun execute(args: JsonObject): ToolOutcome {
+        val food = build(args)
+        val id = dao.insertFavorite(food)
+        return ToolOutcome("已添加常吃 #$id ${food.name}", "添加常吃：${food.name}", buildJsonObject { put("id", id) })
+    }
+
+    override suspend fun undo(undoData: JsonObject) {
+        undoData.long("id")?.let { dao.deleteFavorite(it) }
     }
 }
 
