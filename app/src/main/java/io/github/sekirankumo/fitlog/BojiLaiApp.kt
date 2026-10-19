@@ -1,5 +1,6 @@
 package io.github.sekirankumo.fitlog
 
+import io.github.sekirankumo.fitlog.assistant.tools.AddFavoriteTool
 import io.github.sekirankumo.fitlog.assistant.tools.ClearNutritionPlanTool
 import io.github.sekirankumo.fitlog.assistant.tools.SetNutritionPlanTool
 import io.github.sekirankumo.fitlog.assistant.tools.GetNutritionPlanTool
@@ -154,6 +155,7 @@ class AppContainer(app: Application) {
             UpdateFoodTool(database.foodDao()),
             DeleteFoodTool(database.foodDao()),
             ListFavoritesTool(database.foodDao()),
+            AddFavoriteTool(database.foodDao()),
             UpdateFavoriteTool(database.foodDao()),
             DeleteFavoriteTool(database.foodDao()),
             // 训练

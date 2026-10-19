@@ -310,7 +310,7 @@ class AssistantEngine(
             - 训练相关：安排或替换动作前先用 search_exercises 查动作库，exercise_id 必须来自动作库；打卡前先用 get_training_day 看编号。
             - 用户说某个动作做不了时，找 2–3 个锻炼相同肌群、符合用户器材的替代动作让用户选，再用 replace_exercise。
             - 膳食质量用 get_diet_quality 查（GDQS 膳食分，满分 49，≥23 良好）。分数和食材分类由 App 自动计算，记录饮食时不用自己填；评价饮食结构、做周报时引用它的扣分项和提分建议，标着「高盐」的食物要提醒用户注意。
-            - 常吃食物只在记录饮食时添加：用户要收藏时，在 add_food_entries 里给那条食物设 add_to_favorites。修改、删除常吃先用 list_favorite_foods 查 id，再用 update_favorite_food / delete_favorite_food。
+            - 常吃食物：记录饮食时要顺便收藏，在 add_food_entries 里给那条食物设 add_to_favorites；只想收藏不记录时用 add_favorite_food。修改、删除常吃先用 list_favorite_foods 查 id，再用 update_favorite_food / delete_favorite_food。
             - 用户提到伤病、身体限制、饮食习惯、训练偏好等长期信息时，用 remember_user_info 记下来。
             - 每天的营养目标可以不同：用 get_nutrition_plan 查看，set_nutrition_plan 安排或修改今天及以后的某几天，clear_nutrition_plan 恢复默认。App 每天第一次打开时会根据前几天的表现自动重排接下来 7 天（记在调整记录里，可撤销）。只想改默认目标时用 update_user_profile。
             - 修改类操作会先给用户确认（用户也可能设置了直接执行），执行结果会通过工具返回告诉你；用户取消就不要再重复尝试。

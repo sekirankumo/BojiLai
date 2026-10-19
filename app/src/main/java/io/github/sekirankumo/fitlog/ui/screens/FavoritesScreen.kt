@@ -1,5 +1,7 @@
 package io.github.sekirankumo.fitlog.ui.screens
 
+import io.github.sekirankumo.fitlog.data.db.Meal
+import io.github.sekirankumo.fitlog.ui.components.AppIcons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -53,8 +55,8 @@ import io.github.sekirankumo.fitlog.util.fmt
 import kotlinx.coroutines.launch
 
 /**
- * 常吃食物管理：只能修改和删除（左滑删除，可以撤销）。
- * 常吃只在记录饮食时添加（确认食物时勾选「加入常吃」），这里不单独做添加入口。
+ * 常吃食物管理：添加、修改、左滑删除（可以撤销）。
+ * 也可以在记录饮食时勾选「加入常吃」，或者让 AI 帮忙增删改。
  */
 @Composable
 fun FavoritesScreen(container: AppContainer) {
@@ -63,6 +65,7 @@ fun FavoritesScreen(container: AppContainer) {
     val flow = remember { dao.observeFavorites() }
     val favorites by flow.collectAsState(initial = null)
     var editing by remember { mutableStateOf<FavoriteFood?>(null) }
+    var adding by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val toast = LocalToast.current
     val list = rememberLazyListState()
@@ -76,11 +79,14 @@ fun FavoritesScreen(container: AppContainer) {
     LazyColumn(state = list, modifier = Modifier.fillMaxSize(), contentPadding = screenPadding()) {
         item {
             Text(
-                "常吃在记录饮食时添加：确认食物时勾选「加入常吃」。这里可以修改，左滑删除。",
+                "这里可以添加、修改常吃，左滑删除。记录饮食时勾选「加入常吃」、或者让 AI 帮忙，也能添加。",
                 style = Brand.type.label,
                 color = c.muted,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
             )
+        }
+        item {
+            BButton("添加常吃", Modifier.fillMaxWidth().padding(top = 12.dp), kind = ButtonKind.Soft, icon = AppIcons.Plus) { adding = true }
         }
         val items = favorites
         if (items != null && items.isEmpty()) {
@@ -88,7 +94,7 @@ fun FavoritesScreen(container: AppContainer) {
                 EmptyState(
                     Icons.Outlined.StarOutline,
                     "还没有常吃食物",
-                    "记录饮食时勾选「加入常吃」，下次在「记一餐」里点一下就能加入。",
+                    "添加之后，下次在「记一餐」里点一下就能加入。",
                 )
             }
         } else if (items != null) {
@@ -137,6 +143,18 @@ fun FavoritesScreen(container: AppContainer) {
             onDelete = { delete(f) },
         )
     }
+    if (adding) {
+        FavoriteEditSheet(
+            favorite = null,
+            nameTaken = { name -> favorites.orEmpty().any { it.name == name } },
+            onDismiss = { adding = false },
+            onSave = { food ->
+                scope.launch { dao.insertFavorite(food) }
+                toast.show("已添加「${food.name}」")
+            },
+            onDelete = {},
+        )
+    }
 }
 
 @Composable
@@ -169,18 +187,32 @@ private fun FavoriteRow(f: FavoriteFood, onClick: () -> Unit) {
     }
 }
 
-/** 编辑常吃：名称、份量、克数（改克数时营养按比例换算）、营养 */
+/** 添加 / 编辑常吃：名称、份量、克数（改克数时营养按比例换算）、营养。favorite 为 null 时是添加 */
 @Composable
 private fun FavoriteEditSheet(
-    favorite: FavoriteFood,
+    favorite: FavoriteFood?,
     nameTaken: (String) -> Boolean,
     onDismiss: () -> Unit,
     onSave: (FavoriteFood) -> Unit,
     onDelete: () -> Unit,
 ) {
     val c = Brand.colors
-    val original = remember(favorite.id) { FoodDraft.fromFavorite(favorite, System.currentTimeMillis()) }
-    var draft by remember(favorite.id) { mutableStateOf(original) }
+    val original = remember(favorite?.id) {
+        favorite?.let { FoodDraft.fromFavorite(it, System.currentTimeMillis()) } ?: FoodDraft(
+            key = FoodDraft.nextKey(),
+            name = "",
+            amount = null,
+            grams = null,
+            kcal = 0.0,
+            proteinG = 0.0,
+            fatG = 0.0,
+            carbsG = 0.0,
+            meal = Meal.Snack,
+            eatenAt = System.currentTimeMillis(),
+            source = "manual",
+        )
+    }
+    var draft by remember(favorite?.id) { mutableStateOf(original) }
     val name = draft.name.trim()
     val error = when {
         name.isEmpty() -> "名称不能为空"
@@ -189,11 +221,27 @@ private fun FavoriteEditSheet(
     }
     BSheet(
         onDismiss = onDismiss,
-        title = "编辑常吃",
+        title = if (favorite == null) "添加常吃" else "编辑常吃",
         actions = { s ->
-            BButton("删除", Modifier.weight(0.8f), kind = ButtonKind.Danger) { s.close(onDelete) }
+            if (favorite != null) BButton("删除", Modifier.weight(0.8f), kind = ButtonKind.Danger) { s.close(onDelete) }
             BButton("取消", Modifier.weight(1f), kind = ButtonKind.Soft) { s.close() }
             BButton("保存", Modifier.weight(1f), enabled = error == null) {
+                if (favorite == null) {
+                    // 新加的：食材和高盐交给后台分析（没手动标高盐时留空）
+                    val food = FavoriteFood(
+                        name = name,
+                        amount = draft.amount?.trim()?.ifEmpty { null },
+                        grams = draft.grams,
+                        kcal = draft.kcal,
+                        proteinG = draft.proteinG,
+                        fatG = draft.fatG,
+                        carbsG = draft.carbsG,
+                        components = encodeComponents(draft.components),
+                        highSalt = if (draft.components == null && !draft.highSalt) null else draft.highSalt,
+                    )
+                    s.close { onSave(food) }
+                    return@BButton
+                }
                 val updated = favorite.copy(
                     name = name,
                     amount = draft.amount?.trim()?.ifEmpty { null },
