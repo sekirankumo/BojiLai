@@ -46,11 +46,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.PhotoCamera
-import androidx.compose.material.icons.outlined.PhotoLibrary
-import androidx.compose.material.icons.rounded.Stop
+import io.github.sekirankumo.fitlog.ui.icons.outlined.ErrorOutline
+import io.github.sekirankumo.fitlog.ui.icons.outlined.Mic
+import io.github.sekirankumo.fitlog.ui.icons.outlined.PhotoCamera
+import io.github.sekirankumo.fitlog.ui.icons.outlined.PhotoLibrary
+import io.github.sekirankumo.fitlog.ui.icons.rounded.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem

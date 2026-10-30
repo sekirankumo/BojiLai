@@ -24,7 +24,7 @@ permissions:
 jobs:
   build:
     runs-on: macos-15
-    timeout-minutes: 90
+    timeout-minutes: 120
     # 显式写 bash 才会带 pipefail，xcodebuild | tail 失败时步骤才会失败
     defaults:
       run:
@@ -56,6 +56,12 @@ jobs:
           # Kotlin 2.2 支持到 Xcode 26；优先用 16.4，没有就用默认的
           if [ -d /Applications/Xcode_16.4.app ]; then sudo xcode-select -s /Applications/Xcode_16.4.app; fi
           xcodebuild -version
+
+      # Kotlin/Native 的 Release 编译很吃内存，给够（机器有 7GB），否则 GC 打转非常慢
+      - name: Gradle memory
+        run: |
+          mkdir -p "${GRADLE_USER_HOME:-$HOME/.gradle}"
+          echo "org.gradle.jvmargs=-Xmx6g -Dfile.encoding=UTF-8" >> "${GRADLE_USER_HOME:-$HOME/.gradle}/gradle.properties"
 
       - name: Generate Xcode project
         run: |

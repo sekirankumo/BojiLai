@@ -39,10 +39,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.EventAvailable
-import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.TaskAlt
+import io.github.sekirankumo.fitlog.ui.icons.outlined.EventAvailable
+import io.github.sekirankumo.fitlog.ui.icons.outlined.History
+import io.github.sekirankumo.fitlog.ui.icons.outlined.Mic
+import io.github.sekirankumo.fitlog.ui.icons.outlined.TaskAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable

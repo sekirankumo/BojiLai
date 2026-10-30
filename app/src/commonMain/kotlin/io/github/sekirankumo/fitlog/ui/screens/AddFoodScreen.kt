@@ -38,11 +38,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.PhotoCamera
-import androidx.compose.material.icons.outlined.PhotoLibrary
-import androidx.compose.material.icons.outlined.StarOutline
+import io.github.sekirankumo.fitlog.ui.icons.outlined.DeleteOutline
+import io.github.sekirankumo.fitlog.ui.icons.outlined.Mic
+import io.github.sekirankumo.fitlog.ui.icons.outlined.PhotoCamera
+import io.github.sekirankumo.fitlog.ui.icons.outlined.PhotoLibrary
+import io.github.sekirankumo.fitlog.ui.icons.outlined.StarOutline
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
