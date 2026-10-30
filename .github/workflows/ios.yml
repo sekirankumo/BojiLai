@@ -78,7 +78,7 @@ jobs:
             ARCHS=arm64 ONLY_ACTIVE_ARCH=NO             CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES DEVELOPMENT_TEAM= \
             GRADLE="$(which gradle)" JAVA_HOME="$JAVA_HOME" \
             CURRENT_PROJECT_VERSION="$VERSION_CODE" MARKETING_VERSION="0.1.$VERSION_CODE" \
-            build | tail -n 200
+            -quiet build
 
       - name: Simulator screenshots
         if: inputs.tag == ''
@@ -103,6 +103,8 @@ jobs:
           # 崩溃时把日志带上
           xcrun simctl spawn "$DEVICE" log show --last 10m --predicate 'process == "BojiLai"' --style compact > ios-screenshots/app.log 2>&1 || true
           cp ~/Library/Logs/DiagnosticReports/BojiLai* ios-screenshots/ 2>/dev/null || true
+          # 关掉模拟器，把内存让给后面的 Release 编译
+          xcrun simctl shutdown all || true
 
       - uses: actions/upload-artifact@v4
         if: always() && inputs.tag == ''
@@ -120,11 +122,12 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             GRADLE="$(which gradle)" JAVA_HOME="$JAVA_HOME" \
             CURRENT_PROJECT_VERSION="$VERSION_CODE" MARKETING_VERSION="0.1.$VERSION_CODE" \
-            build | tail -n 200
+            -quiet build
           APP=build/ios/Build/Products/Release-iphoneos/BojiLai.app
           test -d "$APP"
           codesign --force --sign - --entitlements iosApp/BojiLai/BojiLai.entitlements "$APP"
-          codesign -d --entitlements - "$APP" || true
+          # 确认 Apple 健康权限真的进了安装包，否则直接失败
+          codesign -d --entitlements - --xml "$APP" | tee /dev/stderr | grep -q com.apple.developer.healthkit
           rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
           zip -qry "BojiLai-0.1.$VERSION_CODE.ipa" Payload
           ls -la *.ipa

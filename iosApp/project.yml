@@ -14,14 +14,14 @@ targets:
     platform: iOS
     sources:
       - path: BojiLai
-    entitlements:
-      path: BojiLai/BojiLai.entitlements
     settings:
       base:
         PRODUCT_NAME: BojiLai
         # Info.plist 是手写的（中文名、各项权限说明），不让 Xcode / XcodeGen 生成
         INFOPLIST_FILE: BojiLai/Info.plist
         GENERATE_INFOPLIST_FILE: NO
+        # 权限文件也是手写的：用 XcodeGen 的 entitlements 选项会把它清空
+        CODE_SIGN_ENTITLEMENTS: BojiLai/BojiLai.entitlements
         PRODUCT_BUNDLE_IDENTIFIER: io.github.sekirankumo.fitlog
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
