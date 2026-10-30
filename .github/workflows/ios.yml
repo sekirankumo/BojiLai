@@ -69,7 +69,7 @@ jobs:
           xcodebuild -project iosApp/BojiLai.xcodeproj -scheme BojiLai \
             -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/ios \
-            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO             CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES DEVELOPMENT_TEAM= \
             GRADLE="$(which gradle)" JAVA_HOME="$JAVA_HOME" \
             CURRENT_PROJECT_VERSION="$VERSION_CODE" MARKETING_VERSION="0.1.$VERSION_CODE" \
             build | tail -n 200
@@ -85,7 +85,7 @@ jobs:
           mkdir -p ios-screenshots
           for route in today diet training body settings assistant ai_settings profile exercise_library; do
             xcrun simctl terminate "$DEVICE" io.github.sekirankumo.fitlog || true
-            xcrun simctl launch "$DEVICE" io.github.sekirankumo.fitlog -route "$route"
+            xcrun simctl launch --stdout="$PWD/ios-screenshots/$route.out.txt" --stderr="$PWD/ios-screenshots/$route.err.txt"               "$DEVICE" io.github.sekirankumo.fitlog -route "$route"
             sleep 12
             xcrun simctl io "$DEVICE" screenshot "ios-screenshots/$route.png"
           done
@@ -95,7 +95,8 @@ jobs:
           sleep 12
           xcrun simctl io "$DEVICE" screenshot "ios-screenshots/today_dark.png"
           # 崩溃时把日志带上
-          xcrun simctl spawn "$DEVICE" log show --last 5m --predicate 'process == "BojiLai"' --style compact > ios-screenshots/app.log 2>&1 || true
+          xcrun simctl spawn "$DEVICE" log show --last 10m --predicate 'process == "BojiLai"' --style compact > ios-screenshots/app.log 2>&1 || true
+          cp ~/Library/Logs/DiagnosticReports/BojiLai* ios-screenshots/ 2>/dev/null || true
 
       - uses: actions/upload-artifact@v4
         if: always() && inputs.tag == ''

@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>薄肌来 · AI 陪你练出薄肌</title>
-<meta name="description" content="薄肌来：一句话记饮食、拍照算热量、膳食质量评分、AI 排训练计划、漏练自动重排。免费开源的安卓 App，数据只存在你的手机上。">
+<meta name="description" content="薄肌来：一句话记饮食、拍照算热量、膳食质量评分、AI 排训练计划、漏练自动重排。免费开源，安卓和 iPhone 都能用，数据只存在你的手机上。">
 <meta property="og:title" content="薄肌来 · AI 陪你练出薄肌">
-<meta property="og:description" content="一句话记饮食、拍照算热量、AI 排训练计划、漏练自动重排。免费开源的安卓 App。">
+<meta property="og:description" content="一句话记饮食、拍照算热量、AI 排训练计划、漏练自动重排。免费开源，安卓和 iPhone 都能用。">
 <meta property="og:image" content="https://sekirankumo.github.io/BojiLai/img/shots/today.webp">
 <meta name="theme-color" content="#F4F6F4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0B110E" media="(prefers-color-scheme: dark)">
@@ -305,7 +305,7 @@ footer a { color: var(--muted); text-decoration: underline; text-underline-offse
   <div class="wrap">
     <header class="hero">
       <div>
-        <span class="eyebrow"><span class="dot"></span>免费 · 开源 · 安卓</span>
+        <span class="eyebrow"><span class="dot"></span>免费 · 开源 · 安卓 / iPhone</span>
         <h1>AI 陪你<br>练出<span class="hl">薄肌</span></h1>
         <p class="lead">吃了什么说一句，练了什么点一下。热量帮你算，吃得好不好帮你打分，计划帮你排，漏练了自动帮你重新安排。你只管吃好、练好。</p>
         <div class="cta">
@@ -462,7 +462,7 @@ footer a { color: var(--muted); text-decoration: underline; text-underline-offse
         <ul class="ticks">
           <li>「正在恢复」列出还没恢复好的部位，安排下一练心里有数</li>
           <li>体重、体脂趋势图上，粗线的 7 天移动平均才是真实走向</li>
-          <li>体重秤的数据可以通过安卓的 Health Connect 自动同步过来</li>
+          <li>体重秤的数据可以通过安卓的 Health Connect 或 iPhone 的「健康」自动同步过来</li>
         </ul>
       </div>
       <div class="phone"><img src="img/shots/body.webp" alt="身体页：体重趋势和肌肉恢复截图" loading="lazy"></div>
@@ -499,10 +499,11 @@ footer a { color: var(--muted); text-decoration: underline; text-underline-offse
       <h2>三步开始</h2>
       <p>不用注册账号，不用付费。</p>
     </div>
-    <div class="steps">
+    <div class="steps" id="install">
       <div class="step reveal">
         <h3>下载安装</h3>
-        <p>在 <a href="https://github.com/sekirankumo/BojiLai/releases/latest">Releases</a> 下载最新的 APK 安装。以后有新版本，App 里点一下就能更新。</p>
+        <p>安卓：在 <a href="https://github.com/sekirankumo/BojiLai/releases/latest">Releases</a> 下载最新的 APK 安装，以后有新版本，App 里点一下就能更新。</p>
+        <p>iPhone：在同一个页面下载 IPA，用电脑上的 <a href="https://sideloadly.io/">Sideloadly</a> 登录自己的 Apple ID 装到手机上（详细步骤见 <a href="https://github.com/sekirankumo/BojiLai#安装">说明</a>）。免费 Apple ID 装的每 7 天要重新装一次，数据不会丢。</p>
       </div>
       <div class="step reveal">
         <h3>填上 AI Key</h3>
@@ -542,11 +543,11 @@ footer a { color: var(--muted); text-decoration: underline; text-underline-offse
       </details>
       <details>
         <summary>能同步体重秤的数据吗？</summary>
-        <p>可以。薄肌来从安卓系统的 Health Connect（健康连接）读取体重和体脂，小米运动健康、三星健康、体脂秤自带的 App 等，只要在它们的设置里打开 Health Connect 数据共享就行。第一次打开薄肌来不会要任何权限，想同步时在 设置 → 健康数据同步 里点「开启同步」，不想用了随时可以停止。</p>
+        <p>可以。安卓上薄肌来从 Health Connect（健康连接）读取体重和体脂，小米运动健康、三星健康、体脂秤自带的 App 等，只要在它们的设置里打开 Health Connect 数据共享就行；iPhone 上从「健康」App 读取，体脂秤 App 写进「健康」的数据都能同步。第一次打开薄肌来不会要任何权限，想同步时在 设置 → 健康数据同步 里点「开启同步」，不想用了随时可以停止。</p>
       </details>
       <details>
         <summary>有 iPhone 版吗？</summary>
-        <p>暂时只有安卓版。iPhone 版需要另外开发和签名，在计划中。</p>
+        <p>有。功能和安卓版一样，和体重秤同步走的是 iPhone 的「健康」App，语音输入用 iPhone 自带的语音识别。因为没有上架 App Store，需要在 <a href="https://github.com/sekirankumo/BojiLai/releases/latest">Releases</a> 下载 IPA，用电脑上的 Sideloadly 装到手机上；免费 Apple ID 装的每 7 天要重新装一次。</p>
       </details>
     </div>
   </div>
