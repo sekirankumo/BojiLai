@@ -1,0 +1,38 @@
+# iOS 工程由 XcodeGen 生成（CI 里运行 xcodegen），不用手写 .xcodeproj
+name: BojiLai
+options:
+  bundleIdPrefix: io.github.sekirankumo
+  deploymentTarget:
+    iOS: "15.0"
+settings:
+  base:
+    MARKETING_VERSION: "0.1.1"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  BojiLai:
+    type: application
+    platform: iOS
+    sources:
+      - path: BojiLai
+    info:
+      path: BojiLai/Info.plist
+    entitlements:
+      path: BojiLai/BojiLai.entitlements
+    settings:
+      base:
+        PRODUCT_NAME: BojiLai
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.sekirankumo.fitlog
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_VERSION: "5.0"
+        ENABLE_BITCODE: NO
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        # Kotlin 编出来的 BojiLaiKit.framework（静态库）
+        FRAMEWORK_SEARCH_PATHS: "$(SRCROOT)/../app/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
+        OTHER_LDFLAGS: ["$(inherited)", "-framework", "BojiLaiKit", "-lsqlite3"]
+    preBuildScripts:
+      - name: Compile Kotlin
+        basedOnDependencyAnalysis: false
+        script: |
+          cd "$SRCROOT/.."
+          "${GRADLE:-gradle}" :app:embedAndSignAppleFrameworkForXcode --no-daemon

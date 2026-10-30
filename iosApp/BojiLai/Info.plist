@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>zh-Hans</string>
+    <key>CFBundleDisplayName</key>
+    <string>薄肌来</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$(MARKETING_VERSION)</string>
+    <key>CFBundleVersion</key>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>CADisableMinimumFrameDurationOnPhone</key>
+    <true/>
+    <key>UILaunchScreen</key>
+    <dict/>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>arm64</string>
+    </array>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+    </array>
+    <key>UIBackgroundModes</key>
+    <array/>
+    <!-- 自动备份放在 Documents，在「文件」App 的「我的 iPhone › 薄肌来」里能看到 -->
+    <key>UIFileSharingEnabled</key>
+    <true/>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
+    <key>NSCameraUsageDescription</key>
+    <string>拍下饭菜，让 AI 识别吃了什么。</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>从相册选饭菜或体重秤的照片发给 AI 识别。</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>语音记录饮食、打卡训练和跟 AI 对话。</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>把你说的话转成文字，优先在 iPhone 上识别。</string>
+    <key>NSHealthShareUsageDescription</key>
+    <string>读取「健康」里的体重和体脂，用来显示趋势、计算营养目标。数据只保存在这台 iPhone 上。</string>
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>薄肌来不会往「健康」里写数据。</string>
+</dict>
+</plist>

@@ -18,3 +18,7 @@ keystore.properties
 /.claude/
 # 语音识别库，由 tools/fetch_sherpa.sh 下载
 /app/libs/*.aar
+
+# iOS：XcodeGen 生成的工程和编译输出
+/iosApp/BojiLai.xcodeproj/
+/build/

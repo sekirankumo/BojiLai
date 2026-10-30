@@ -1,0 +1,130 @@
+# iOS：在 macOS 机器上编译。开发分支编译检查 + 模拟器截图 + IPA；
+# 发布时由 release.yml 在安卓版发布后调用，编出 IPA 附加到同一个 Release。
+name: iOS
+
+on:
+  push:
+    branches-ignore: [main]
+    paths-ignore: ["**.md", "docs/**"]
+  workflow_dispatch:
+  # 发布流程（release.yml）在安卓版发布后调用，tag 是刚发布的标签
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+
+concurrency:
+  group: ios-${{ github.ref }}-${{ inputs.tag }}
+  cancel-in-progress: ${{ inputs.tag == '' }}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.11.1
+
+      - name: Cache Kotlin/Native
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+
+      - name: Select Xcode
+        run: |
+          ls -d /Applications/Xcode*.app
+          # Kotlin 2.2 支持到 Xcode 26；优先用 16.4，没有就用默认的
+          if [ -d /Applications/Xcode_16.4.app ]; then sudo xcode-select -s /Applications/Xcode_16.4.app; fi
+          xcodebuild -version
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          cd iosApp && xcodegen generate
+
+      # 模拟器版：开发分支用来截图检查界面
+      - name: Build for simulator
+        if: inputs.tag == ''
+        run: |
+          xcodebuild -project iosApp/BojiLai.xcodeproj -scheme BojiLai \
+            -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/ios \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO \
+            GRADLE="$(which gradle)" JAVA_HOME="$JAVA_HOME" \
+            CURRENT_PROJECT_VERSION="$VERSION_CODE" MARKETING_VERSION="0.1.$VERSION_CODE" \
+            build | tail -n 200
+
+      - name: Simulator screenshots
+        if: inputs.tag == ''
+        run: |
+          set -x
+          DEVICE=$(xcrun simctl list devices available | grep -E "iPhone 1[5-7]( Pro)? \(" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl install "$DEVICE" build/ios/Build/Products/Debug-iphonesimulator/BojiLai.app
+          mkdir -p ios-screenshots
+          for route in today diet training body settings assistant ai_settings profile exercise_library; do
+            xcrun simctl terminate "$DEVICE" io.github.sekirankumo.fitlog || true
+            xcrun simctl launch "$DEVICE" io.github.sekirankumo.fitlog -route "$route"
+            sleep 12
+            xcrun simctl io "$DEVICE" screenshot "ios-screenshots/$route.png"
+          done
+          xcrun simctl ui "$DEVICE" appearance dark
+          xcrun simctl terminate "$DEVICE" io.github.sekirankumo.fitlog || true
+          xcrun simctl launch "$DEVICE" io.github.sekirankumo.fitlog -route today
+          sleep 12
+          xcrun simctl io "$DEVICE" screenshot "ios-screenshots/today_dark.png"
+          # 崩溃时把日志带上
+          xcrun simctl spawn "$DEVICE" log show --last 5m --predicate 'process == "BojiLai"' --style compact > ios-screenshots/app.log 2>&1 || true
+
+      - uses: actions/upload-artifact@v4
+        if: always() && inputs.tag == ''
+        with:
+          name: ios-screenshots
+          path: ios-screenshots/
+
+      # 真机版 IPA：不签名（用 Sideloadly / AltStore 等安装时用自己的 Apple ID 签名），
+      # 但带上 Apple 健康等权限声明（ad-hoc 签名）
+      - name: Build IPA
+        run: |
+          xcodebuild -project iosApp/BojiLai.xcodeproj -scheme BojiLai \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build/ios \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            GRADLE="$(which gradle)" JAVA_HOME="$JAVA_HOME" \
+            CURRENT_PROJECT_VERSION="$VERSION_CODE" MARKETING_VERSION="0.1.$VERSION_CODE" \
+            build | tail -n 200
+          APP=build/ios/Build/Products/Release-iphoneos/BojiLai.app
+          test -d "$APP"
+          codesign --force --sign - --entitlements iosApp/BojiLai/BojiLai.entitlements "$APP"
+          codesign -d --entitlements - "$APP" || true
+          rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
+          zip -qry "BojiLai-0.1.$VERSION_CODE.ipa" Payload
+          ls -la *.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ipa
+          path: "*.ipa"
+
+      - name: Attach IPA to release
+        if: inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_TAG" "BojiLai-0.1.$VERSION_CODE.ipa" --clobber

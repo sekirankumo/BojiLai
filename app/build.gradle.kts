@@ -1,11 +1,14 @@
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
+    alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.room)
     alias(libs.plugins.roborazzi)
 }
 
@@ -22,15 +25,93 @@ fun signingValue(envKey: String, propKey: String): String? =
 
 val releaseStoreFile = signingValue("KEYSTORE_FILE", "storeFile")
 
-// 离线语音识别库，由 tools/fetch_sherpa.sh 下载（太大，不放进仓库）
+// 离线语音识别库（只有安卓用），由 tools/fetch_sherpa.sh 下载（太大，不放进仓库）
 val sherpaAar = file("libs/sherpa-onnx-1.13.8.aar")
-check(sherpaAar.exists()) { "缺少语音识别库，请先运行 tools/fetch_sherpa.sh" }
+
+// 只编 iOS 时（macOS 上的 CI）不需要安卓的语音识别库
+val buildingAndroid = gradle.startParameter.taskNames.none { it.contains("ios", ignoreCase = true) || it.contains("Framework") }
+if (buildingAndroid) check(sherpaAar.exists()) { "缺少语音识别库，请先运行 tools/fetch_sherpa.sh" }
+
+kotlin {
+    androidTarget {
+        compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
+    }
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            baseName = "BojiLaiKit"
+            isStatic = true
+        }
+    }
+
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xexpect-actual-classes")
+        optIn.addAll(
+            "kotlin.uuid.ExperimentalUuidApi",
+            "kotlinx.cinterop.ExperimentalForeignApi",
+            "kotlin.concurrent.atomics.ExperimentalAtomicApi",
+            "kotlin.time.ExperimentalTime",
+            "org.jetbrains.compose.resources.ExperimentalResourceApi",
+        )
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+            implementation(compose.material3)
+            implementation(compose.ui)
+            implementation(compose.components.resources)
+            implementation(libs.material.icons.extended)
+            implementation(libs.lifecycle.runtime.compose)
+            implementation(libs.lifecycle.viewmodel.compose)
+            implementation(libs.navigation.compose)
+            implementation(libs.room.runtime)
+            implementation(libs.sqlite.bundled)
+            implementation(libs.datastore.preferences.core)
+            implementation(libs.ktor.client.core)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.datetime)
+            implementation(libs.coil.compose)
+            implementation(libs.haze)
+        }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
+        androidMain.dependencies {
+            implementation(libs.androidx.core.ktx)
+            implementation(libs.androidx.activity.compose)
+            implementation(compose.preview)
+            implementation(libs.kotlinx.coroutines.android)
+            implementation(libs.datastore.preferences)
+            implementation(libs.androidx.work.runtime.ktx)
+            implementation(libs.okhttp)
+            implementation(libs.ktor.client.okhttp)
+            implementation(libs.androidx.exifinterface)
+            implementation(libs.androidx.health.connect)
+            if (sherpaAar.exists()) implementation(files(sherpaAar))
+        }
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
+        }
+        val androidUnitTest by getting {
+            dependencies {
+                implementation(libs.junit)
+                implementation(libs.robolectric)
+                implementation(libs.androidx.test.junit)
+                implementation(libs.androidx.ui.test.junit4)
+                implementation(libs.roborazzi)
+                implementation(libs.roborazzi.compose)
+            }
+        }
+    }
+}
 
 android {
     // App 已改名「薄肌来」，但包名和 applicationId 保持 fitlog 不变：
     // 改了的话已安装的版本无法覆盖更新，只能卸载重装（会丢数据）
     namespace = "io.github.sekirankumo.fitlog"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "io.github.sekirankumo.fitlog"
@@ -38,13 +119,6 @@ android {
         targetSdk = 35
         versionCode = ciVersionCode
         versionName = "0.1.$ciVersionCode"
-
-        // 更新信息：GitHub API 的最新发布（github.com 的直接下载地址在部分网络下会超时）
-        buildConfigField(
-            "String",
-            "UPDATE_URL",
-            "\"https://api.github.com/repos/sekirankumo/BojiLai/releases/latest\""
-        )
     }
 
     signingConfigs {
@@ -75,9 +149,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
@@ -99,44 +170,18 @@ android {
     }
 }
 
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
+compose.resources {
+    packageOfResClass = "io.github.sekirankumo.fitlog.resources"
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    implementation(libs.androidx.material.icons.extended)
-    implementation(libs.androidx.navigation.compose)
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
-    implementation(libs.androidx.datastore.preferences)
-    implementation(libs.androidx.work.runtime.ktx)
-    implementation(libs.okhttp)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.coil.compose)
-    implementation(libs.haze)
-    implementation(libs.androidx.exifinterface)
-    implementation(libs.androidx.health.connect)
-    implementation(files(sherpaAar))
+    add("kspAndroid", libs.room.compiler)
+    add("kspIosArm64", libs.room.compiler)
+    add("kspIosSimulatorArm64", libs.room.compiler)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-
-    // 截图测试（Robolectric + Roborazzi），生成介绍页用的真实界面截图
-    testImplementation(libs.junit)
-    testImplementation(libs.robolectric)
-    testImplementation(libs.androidx.test.junit)
-    testImplementation(platform(libs.androidx.compose.bom))
-    testImplementation(libs.androidx.ui.test.junit4)
-    testImplementation(libs.roborazzi)
-    testImplementation(libs.roborazzi.compose)
 }

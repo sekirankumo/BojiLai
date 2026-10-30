@@ -1,4 +1,4 @@
-# 推送到 main 分支后自动编译签名 APK，并发布到 GitHub Releases。
+# 推送到 main 分支后自动编译签名 APK，并发布到 GitHub Releases；之后再编 iOS 的 IPA 附加上去。
 # App 通过 GitHub API 的 releases/latest 检查更新。
 name: Build & Release
 
@@ -18,6 +18,8 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.publish.outputs.tag }}
     env:
       VERSION_CODE: ${{ github.run_number }}
     steps:
@@ -52,6 +54,7 @@ jobs:
         run: gradle :app:assembleRelease --no-daemon --stacktrace
 
       - name: Publish GitHub release
+        id: publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -60,7 +63,15 @@ jobs:
           APK="BojiLai-${NAME}.apk"
           cp app/build/outputs/apk/release/app-release.apk "$APK"
           # 更新说明取最近一次改动了 App 的非合并提交（合并提交和只改文档的提交不算）
-          NOTES="$(git log -1 --no-merges --pretty=%B -- app/ gradle/ build.gradle.kts settings.gradle.kts)"
+          NOTES="$(git log -1 --no-merges --pretty=%B -- app/ iosApp/ gradle/ build.gradle.kts settings.gradle.kts)"
           # App 从标签最后一段读取 versionCode，标签格式不要改
           gh release create "$TAG" "$APK" \
             --title "薄肌来 ${NAME}" --notes "$NOTES" --latest
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  # iOS 版：安卓发布成功后在 macOS 上编出 IPA，附加到同一个 Release（失败不影响安卓更新）
+  ios:
+    needs: release
+    uses: ./.github/workflows/ios.yml
+    with:
+      tag: ${{ needs.release.outputs.tag }}
