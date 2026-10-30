@@ -207,7 +207,7 @@ actual fun rememberPhotoPicker(maxItems: Int, onPicked: (List<PhotoRef>) -> Unit
 }
 
 actual suspend fun loadFoodPhoto(ref: PhotoRef, maxSide: Int): FoodPhoto = withContext(Dispatchers.Default) {
-    val base64 = suspendCancellableCoroutine { cont ->
+    val base64 = suspendCancellableCoroutine<String?> { cont ->
         bridge.loadPhoto(ref.uri.removePrefix("file://"), maxSide) { cont.resume(it) }
     } ?: error("无法读取图片")
     FoodPhoto("data:image/jpeg;base64,$base64", ref.takenAt)

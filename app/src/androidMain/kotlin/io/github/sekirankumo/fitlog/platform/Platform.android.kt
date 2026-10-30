@@ -27,11 +27,13 @@ actual val supportsBlur: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_
 actual val appVersionCode: Int = BuildConfig.VERSION_CODE
 actual val appVersionName: String = BuildConfig.VERSION_NAME
 
-private const val ASSET_PREFIX = "file:///android_asset/"
+/** Compose 资源在 APK 里的位置（assets/composeResources/<包名>/files） */
+private const val ASSET_DIR = "composeResources/io.github.sekirankumo.fitlog.resources/files/"
+
+actual fun resourceUri(path: String): String = "file:///android_asset/$ASSET_DIR$path"
 
 actual fun readResourceFile(path: String): ByteArray? = runCatching {
-    val uri = resourceUri(path)
-    AndroidPlatform.context.assets.open(uri.removePrefix(ASSET_PREFIX)).use { it.readBytes() }
+    AndroidPlatform.context.assets.open(ASSET_DIR + path).use { it.readBytes() }
 }.getOrNull()
 
 actual fun decodeImageBitmap(bytes: ByteArray): ImageBitmap? =

@@ -6,6 +6,7 @@ import io.ktor.client.engine.darwin.DarwinHttpRequestException
 import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.client.network.sockets.SocketTimeoutException
 import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.github.sekirankumo.fitlog.resources.Res
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import platform.Foundation.NSBundle
@@ -37,6 +38,8 @@ fun NSData.toByteArray(): ByteArray {
     if (size > 0) out.usePinned { memcpy(it.addressOf(0), bytes, length) }
     return out
 }
+
+actual fun resourceUri(path: String): String = Res.getUri("files/$path")
 
 actual fun readResourceFile(path: String): ByteArray? = runCatching {
     val uri = resourceUri(path)

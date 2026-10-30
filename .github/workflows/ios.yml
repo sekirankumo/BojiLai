@@ -25,6 +25,10 @@ jobs:
   build:
     runs-on: macos-15
     timeout-minutes: 90
+    # 显式写 bash 才会带 pipefail，xcodebuild | tail 失败时步骤才会失败
+    defaults:
+      run:
+        shell: bash
     env:
       VERSION_CODE: ${{ github.run_number }}
       RELEASE_TAG: ${{ inputs.tag }}

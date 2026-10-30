@@ -1,6 +1,6 @@
 """把 MuscleMap（MIT 许可，github.com/melihcolpan/MuscleMap）的人体肌肉轮廓转成 App 资源。
 
-用法：python build_musclemap.py <MuscleMap 的 Sources/MuscleMap/Data 目录> <输出 assets 目录>
+用法：python build_musclemap.py <MuscleMap 的 Sources/MuscleMap/Data 目录> <输出目录，app/src/commonMain/composeResources/files>
 输出 musclemap/{male,female}_{front,back}.json：
   {"viewBox": [x, y, w, h], "parts": [{"slug": "chest", "paths": ["M..."]}]}
 """

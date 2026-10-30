@@ -1,9 +1,7 @@
 package io.github.sekirankumo.fitlog.platform
 
 import androidx.compose.ui.graphics.ImageBitmap
-import io.github.sekirankumo.fitlog.resources.Res
 import kotlinx.coroutines.flow.Flow
-import org.jetbrains.compose.resources.ExperimentalResourceApi
 
 /*
  * 安卓和 iOS 不一样的地方都在这个包里：这里是共用的接口，
@@ -27,8 +25,7 @@ expect fun readResourceFile(path: String): ByteArray?
 expect fun decodeImageBitmap(bytes: ByteArray): ImageBitmap?
 
 /** 资源文件给 Coil 用的地址 */
-@OptIn(ExperimentalResourceApi::class)
-fun resourceUri(path: String): String = Res.getUri("files/$path")
+expect fun resourceUri(path: String): String
 
 /** 发通知；open 是点开后跳转的页面路由 */
 interface Notifier {

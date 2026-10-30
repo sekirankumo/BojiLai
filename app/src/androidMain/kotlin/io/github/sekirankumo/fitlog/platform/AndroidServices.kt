@@ -27,6 +27,8 @@ import io.github.sekirankumo.fitlog.voice.SherpaSpeechEngine
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -108,8 +110,10 @@ private fun applySystemNightMode(context: Context, mode: ThemeMode) {
 private class WorkManagerPlanJobs(private val context: Context) : PlanJobs {
     override fun enqueue(args: String): String = PlanGenerateWorker.enqueue(context, args).toString()
 
-    override val current: Flow<PlanJob?> =
-        WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(PlanGenerateWorker.UNIQUE).map { infos ->
+    // 用到时才取 WorkManager（截图测试里没有初始化 WorkManager）
+    override val current: Flow<PlanJob?> = flow {
+        emitAll(WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(PlanGenerateWorker.UNIQUE))
+    }.map { infos ->
             infos.firstOrNull()?.let { info ->
                 PlanJob(
                     id = info.id.toString(),

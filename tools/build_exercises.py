@@ -1,6 +1,6 @@
 """把 free-exercise-db（公共领域）和 exercises_zh.txt 的中文说明合并成 App 的动作库资源。
 
-用法：python build_exercises.py <free-exercise-db 目录> <输出 assets 目录>
+用法：python build_exercises.py <free-exercise-db 目录> <输出目录，app/src/commonMain/composeResources/files>
 需要 Pillow，用来把图片缩小到 400px 宽。
 """
 import json
